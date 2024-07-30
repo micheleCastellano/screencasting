@@ -3,7 +3,6 @@ use std::io::ErrorKind::WouldBlock;
 use std::thread;
 use std::time::Duration;
 use std::fs::File;
-// use std::time::{SystemTime, UNIX_EPOCH};
 pub fn save(buffer: Vec::<u8>, w: usize, h: usize, path: &str){
 
     let mut bitflipped = Vec::with_capacity(w * h * 4);

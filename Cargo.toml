@@ -10,11 +10,11 @@ scrap = "*"          # Per catturare lo schermo
 image = "*"                 # Per gestione delle immagini
 tokio = { version = "*", features = ["full"] }  # Per gestione asincrona
 warp = "*"            # Per l'API HTTP, utile per la comunicazione tra peers
-winit = "*"          # Per la gestione della finestra e gli eventi
+#winit = "*"          # Per la gestione della finestra e gli eventi
 eframe = "*"                # Per creare l'interfaccia utente
 futures = "*"
 serde = { version = "*", features = ["derive"] }         # Per la gestione delle future
 #ffmpeg-next = "*"
 repng = "*"
-egui = "*"
+#egui = "*"
 egui_extras = {version = "*", features = ["all_loaders"]}
