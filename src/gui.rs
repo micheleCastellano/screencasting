@@ -1,9 +1,5 @@
 use std::collections::VecDeque;
-use std::path::PathBuf;
-use std::thread;
-use std::time::Duration;
 use eframe::egui;
-use egui::include_image;
 use egui_extras::{install_image_loaders};
 
 #[derive(Default)]
@@ -39,22 +35,6 @@ impl eframe::App for MyEguiApp {
 
         });
     }
-}
-
-fn get_image_paths_from_directory(path_buf: PathBuf) -> Vec<String> {
-    path_buf
-        .read_dir()
-        .unwrap()
-        .map(|entry| {
-            let entry = entry.unwrap();
-            let entry_path = entry.path();
-            let file_name = entry_path.as_os_str();
-            let file_name_as_str = file_name.to_str().unwrap();
-            let file_name_as_string = String::from(file_name_as_str);
-
-            file_name_as_string
-        })
-        .collect::<Vec<String>>()
 }
 pub fn launch() {
     let native_options = eframe::NativeOptions::default();

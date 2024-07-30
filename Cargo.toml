@@ -18,3 +18,5 @@ serde = { version = "*", features = ["derive"] }         # Per la gestione delle
 repng = "*"
 egui = "*"
 egui_extras = {version = "*", features = ["all_loaders"]}
+reqwest = {version = "*", features = ["json"]}
+png = "0.17.13"

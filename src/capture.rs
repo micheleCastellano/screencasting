@@ -3,7 +3,9 @@ use std::io::ErrorKind::WouldBlock;
 use std::thread;
 use std::time::Duration;
 use std::fs::File;
+use std::io::BufWriter;
 // use std::time::{SystemTime, UNIX_EPOCH};
+
 pub fn save(buffer: Vec::<u8>, w: usize, h: usize, path: &str){
 
     let mut bitflipped = Vec::with_capacity(w * h * 4);
@@ -42,7 +44,28 @@ pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::E
 
     loop {
         match capturer.frame() {
-            Ok(buffer) => return Ok((buffer.to_vec(), w, h)),
+            Ok(buffer) => {
+                let frame = buffer.to_vec();
+
+                // Converte il frame in un'immagine RGBA
+                let buffer: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = image::ImageBuffer::from_raw(w as u32, h as u32, frame)
+                    .expect("Failed to convert frame to ImageBuffer");
+
+                // Salva l'immagine come PNG in memoria
+                let mut png_data = Vec::new();
+                {
+                    let writer = BufWriter::new(&mut png_data);
+                    let mut encoder = png::Encoder::new(writer, buffer.width(), buffer.height());
+                    encoder.set_color(png::ColorType::Rgba);
+                    encoder.set_depth(png::BitDepth::Eight);
+                    let mut writer = encoder.write_header().expect("Failed to write PNG header");
+                    writer
+                        .write_image_data(&buffer)
+                        .expect("Failed to write PNG data");
+                }
+
+                return Ok((png_data, w, h))
+            },
             Err(error) => {
                 if error.kind() == WouldBlock {
                     // Keep spinning.
@@ -54,6 +77,9 @@ pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::E
             }
         };
     }
+
+
+
 }
 
 

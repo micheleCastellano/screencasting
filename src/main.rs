@@ -1,13 +1,48 @@
 use std::thread;
 use std::time::Duration;
-use crate::capture::{capture_screen, save};
-use crate::make_video::make;
+use serde::{Deserialize, Serialize};
+// use warp::Filter;
+use reqwest::Client;
+use tokio::task;
+use crate::capture::{capture_screen};
+
 
 mod capture;
-mod make_video;
-mod gui;
 
-fn main() {
+#[derive(Serialize, Deserialize)]
+struct Message{
+    content:Vec<u8>
+}
+
+
+async fn send_request(client:Client,v:Vec<u8>){
+
+            match client.post("http://192.168.10.114:3030/")
+                .json(&Message { content: v })
+                .send()
+                .await
+            {
+                Ok(_response) => {
+                    println!("ok");
+                },
+                Err(e) => println!("Error: {}", e),
+            }
+}
+#[tokio::main]
+async fn main() {
+
+    for _ in 1..1000 {
+        let (v, w, h) = capture_screen().unwrap();
+        println!("w:{}, h:{}", w, h);
+        let client = Client::new();
+
+        // Send the POST request
+        task::spawn(send_request(client,v));
+        thread::sleep(Duration::from_millis(10));
+    }
+
+
+
     /*let mut images = vec![];
 
     let (v, w, h) = capture_screen().unwrap();
@@ -28,8 +63,8 @@ fn main() {
 
 
     make("./images5/%d.png", "./images5/video.mp4");
-    */
 
     gui::launch();
+    */
 
 }
