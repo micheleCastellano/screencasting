@@ -1,22 +1,28 @@
+//use egui::mutex::Mutex;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::io::Write;
+use std::sync::{Arc, Mutex};
+//use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
 // use warp::Filter;
-use reqwest::Client;
+use crate::capture::capture_screen;
+//use reqwest::Client;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 use tokio::task;
-use crate::capture::{capture_screen};
-
 
 mod capture;
 
 #[derive(Serialize, Deserialize)]
-struct Message{
-    content:Vec<u8>
+struct Message {
+    content: Vec<u8>,
 }
 
-
-async fn send_request(client:Client,v:Vec<u8>){
-
+/*
+async fn send_request(stream: Arc<Mutex<TcpStream>>, v: &[u8]) -> Result<(), Box<dyn Error>> {
+    /*
             match client.post("http://192.168.10.114:3030/")
                 .json(&Message { content: v })
                 .send()
@@ -27,21 +33,56 @@ async fn send_request(client:Client,v:Vec<u8>){
                 },
                 Err(e) => println!("Error: {}", e),
             }
+    */
+    let mut stream = stream.lock().await;
+    stream.write_all(v).await.expect("something went wrong");
+    println!("messaggio inviato");
+    Ok(())
 }
-#[tokio::main]
-async fn main() {
+*/
 
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    /*
+    let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
+    let stream = Arc::new(Mutex::new(stream));
     for _ in 1..1000 {
         let (v, w, h) = capture_screen().unwrap();
         println!("w:{}, h:{}", w, h);
-        let client = Client::new();
+        //let client = Client::new();
+        let stream_clone = Arc::clone(&stream);
 
         // Send the POST request
-        task::spawn(send_request(client,v));
+        //task::spawn(send_request(client,v));
+        //task::spawn(send_request(&mut stream, v));
+        task::spawn(send_request(stream_clone, b"ciao"));
         thread::sleep(Duration::from_millis(10));
     }
+    Ok(())
+    */
 
+    // Connessione al server
+    let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
+    println!("Connesso al server!");
 
+    // Invia molti messaggi numerati al server
+    for i in 1..=100 {
+        let (v, w, h) = capture_screen().unwrap();
+        println!("w:{}, h:{}", w, h);
+        stream.write_all(&v).await?;
+        println!("Inviato {}!", i);
+
+        // Buffer per ricevere la risposta
+        let mut buffer = [0; 1024];
+        let n = stream.read(&mut buffer).await?;
+
+        // Stampa la risposta ricevuta dal server
+        println!(
+            "Risposta dal server: {}",
+            String::from_utf8_lossy(&buffer[..n])
+        );
+    }
+    Ok(())
 
     /*let mut images = vec![];
 
@@ -66,5 +107,4 @@ async fn main() {
 
     gui::launch();
     */
-
 }
