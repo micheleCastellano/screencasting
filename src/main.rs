@@ -60,6 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
     */
+    let (v, w, h) = capture_screen().unwrap();
 
     // Connessione al server
     let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
@@ -69,6 +70,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for i in 1..=100 {
         let (v, w, h) = capture_screen().unwrap();
         println!("w:{}, h:{}", w, h);
+        //let v = [10, 100, 200];
         stream.write_all(&v).await?;
         println!("Inviato {}!", i);
 

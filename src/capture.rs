@@ -1,25 +1,20 @@
+use image::GenericImageView;
 use scrap::{Capturer, Display};
+use std::fs::File;
+use std::io::BufWriter;
 use std::io::ErrorKind::WouldBlock;
 use std::thread;
 use std::time::Duration;
-use std::fs::File;
-use std::io::BufWriter;
 // use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn save(buffer: Vec::<u8>, w: usize, h: usize, path: &str){
-
+pub fn save(buffer: Vec<u8>, w: usize, h: usize, path: &str) {
     let mut bitflipped = Vec::with_capacity(w * h * 4);
     let stride = buffer.len() / h;
 
     for y in 0..h {
         for x in 0..w {
             let i = stride * y + 4 * x;
-            bitflipped.extend_from_slice(&[
-                buffer[i + 2],
-                buffer[i + 1],
-                buffer[i],
-                255,
-            ]);
+            bitflipped.extend_from_slice(&[buffer[i + 2], buffer[i + 1], buffer[i], 255]);
         }
     }
 
@@ -29,27 +24,41 @@ pub fn save(buffer: Vec::<u8>, w: usize, h: usize, path: &str){
         w as u32,
         h as u32,
         &bitflipped,
-    ).unwrap();
+    )
+    .unwrap();
 
-    println!("Image saved to {}.",path);
+    println!("Image saved to {}.", path);
 }
 
-pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>>{
+pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
     let one_second = Duration::new(1, 0);
     let one_frame = one_second / 60;
 
     let display = Display::primary().expect("Couldn't find primary display.");
     let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
     let (w, h) = (capturer.width(), capturer.height());
+    println!("width: {w}, height: {h}");
+
+    /*
+    thread::sleep(Duration::from_secs(1));
+    let a_frame = capturer.frame().unwrap();
+    assert_eq!(w * h * 4, a_frame.len());
+    */
 
     loop {
         match capturer.frame() {
             Ok(buffer) => {
-                let frame = buffer.to_vec();
+                let mut frame = buffer.to_vec();
 
                 // Converte il frame in un'immagine RGBA
-                let buffer: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> = image::ImageBuffer::from_raw(w as u32, h as u32, frame)
-                    .expect("Failed to convert frame to ImageBuffer");
+                let buffer: image::ImageBuffer<image::Rgba<u8>, Vec<u8>> =
+                    image::ImageBuffer::from_raw(w as u32, h as u32, frame)
+                        .expect("Failed to convert frame to ImageBuffer");
+                println!(
+                    "buf width: {}, buf height: {}",
+                    buffer.width(),
+                    buffer.height()
+                );
 
                 // Salva l'immagine come PNG in memoria
                 let mut png_data = Vec::new();
@@ -64,28 +73,20 @@ pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::E
                         .expect("Failed to write PNG data");
                 }
 
-                return Ok((png_data, w, h))
-            },
+                return Ok((png_data, w, h));
+            }
             Err(error) => {
                 if error.kind() == WouldBlock {
                     // Keep spinning.
                     thread::sleep(one_frame);
                     continue;
                 } else {
-                    return Err(Box::new(error))
+                    return Err(Box::new(error));
                 }
             }
         };
     }
-
-
-
 }
-
-
-
-
-
 
 /*
 pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
