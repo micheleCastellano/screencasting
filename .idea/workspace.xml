@@ -10,16 +10,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e2a1d096-fa64-4979-847f-b2d399089616" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/screencastingClient" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingClient" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/screencastingClient/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingClient/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screencastingServer/src/capture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingServer/src/capture.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screencastingServer/src/gui.rs" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingServer/src/gui.rs" afterDir="false" />
     </list>
     <list id="e460bd8a-e179-4cb1-adbb-f7b93b420259" name="Changes by angelo" comment="">
       <change beforePath="$PROJECT_DIR$/screencastingClient/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingClient/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screencastingServer/src/gui.rs" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingServer/src/gui.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/screencastingServer/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/screencastingServer/src/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,27 +31,6 @@
         <range start1="62" end1="63" start2="63" end2="63" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
         <range start1="68" end1="68" start2="68" end2="86" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
         <range start1="86" end1="86" start2="104" end2="106" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-      </ranges>
-    </file>
-    <file path="$PROJECT_DIR$/screencastingServer/src/gui.rs">
-      <ranges>
-        <range start1="0" end1="0" start2="0" end2="1" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="1" end1="1" start2="2" end2="3" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="3" end1="4" start2="5" end2="6" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="5" end1="5" start2="7" end2="8" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="8" end1="8" start2="11" end2="12" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="37" end1="38" start2="41" end2="42" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="41" end1="49" start2="45" end2="54" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="52" end1="53" start2="57" end2="65" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="54" end1="54" start2="66" end2="74" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="55" end1="56" start2="75" end2="75" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="57" end1="57" start2="76" end2="77" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="60" end1="60" start2="80" end2="81" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="63" end1="65" start2="84" end2="86" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="66" end1="67" start2="87" end2="96" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
-        <range start1="69" end1="70" start2="98" end2="99" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="74" end1="74" start2="103" end2="105" changelist="e460bd8a-e179-4cb1-adbb-f7b93b420259" />
-        <range start1="76" end1="77" start2="107" end2="108" changelist="e2a1d096-fa64-4979-847f-b2d399089616" />
       </ranges>
     </file>
   </component>
@@ -144,7 +118,7 @@
       <workItem from="1726649103677" duration="1187000" />
       <workItem from="1726650311250" duration="5862000" />
       <workItem from="1726735474193" duration="8000" />
-      <workItem from="1726735622607" duration="6814000" />
+      <workItem from="1726735622607" duration="7175000" />
     </task>
     <servers />
   </component>
