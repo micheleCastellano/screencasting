@@ -55,11 +55,6 @@ pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::E
     }
 }
 
-
-
-
-
-
 /*
 pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
     let display = Display::primary()?;

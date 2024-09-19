@@ -31,7 +31,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //loop {
     // Accetta una connessione
     let (socket, _) = listener.accept()?;
-    let (socket, _) = listener.accept()?;
     gui::launch(socket);
     /*
     let socket_copy = TcpStream::try_clone(&socket);
