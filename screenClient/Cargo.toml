@@ -1,0 +1,22 @@
+[package]
+name = "screencasting_app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+scrap = "*"          # Per catturare lo schermo
+image = "*"                 # Per gestione delle immagini
+tokio = { version = "*", features = ["full"] }  # Per gestione asincrona
+warp = "*"            # Per l'API HTTP, utile per la comunicazione tra peers
+winit = "*"          # Per la gestione della finestra e gli eventi
+eframe = "*"                # Per creare l'interfaccia utente
+futures = "*"
+serde = { version = "*", features = ["derive"] }         # Per la gestione delle future
+#ffmpeg-next = "*"
+repng = "*"
+egui = "*"
+egui_extras = {version = "*", features = ["all_loaders"]}
+reqwest = {version = "*", features = ["json"]}
+png = "0.17.13"
