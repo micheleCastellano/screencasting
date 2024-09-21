@@ -3,18 +3,15 @@ name = "screencasting_app"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-scrap = "*"          # Per catturare lo schermo
-image = "*"                 # Per gestione delle immagini
+eframe = { version = "*", features = [
+    "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    #    "persistence",   # Enable restoring app state when restarting the app.
+] }
 tokio = { version = "*", features = ["full"] }  # Per gestione asincrona
-warp = "*"            # Per l'API HTTP, utile per la comunicazione tra peers
-winit = "*"          # Per la gestione della finestra e gli eventi
-eframe = "*"                # Per creare l'interfaccia utente
-futures = "*"
-serde = { version = "*", features = ["derive"] }         # Per la gestione delle future
-#ffmpeg-next = "*"
+scrap = "*"          # Per catturare lo schermo
+png = "*"
 repng = "*"
-egui = "*"
+image = "*"
 egui_extras = {version = "*", features = ["all_loaders"]}
