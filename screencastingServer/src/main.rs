@@ -1,27 +1,26 @@
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::error::Error;
 use std::net::TcpListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 //use tokio::net::TcpListener;
-use warp::Filter;
 mod capture;
 mod gui;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     /*
-    let (sender, receiver) = channel();
+      let (sender, receiver) = channel();
 
-    let route = warp::body::json()
-        .map(move |simple_map: HashMap<String, Vec<u8>>| {
-            let _ = sender.send(simple_map["content"].clone());
-            "Got a JSON body!"
-        });
-    let server = warp::serve(route)
-        .run(([0, 0, 0, 0], 3030));
-    tokio::spawn(server);
-    println!("gui start");
-    gui::launch(receiver);
-  */
+      let route = warp::body::json()
+          .map(move |simple_map: HashMap<String, Vec<u8>>| {
+              let _ = sender.send(simple_map["content"].clone());
+              "Got a JSON body!"
+          });
+      let server = warp::serve(route)
+          .run(([0, 0, 0, 0], 3030));
+      tokio::spawn(server);
+      println!("gui start");
+      gui::launch(receiver);
+    */
 
     //Crea il listener su 127.0.0.1:8080
     //let listener = TcpListener::bind("127.0.0.1:8080").await?;
@@ -31,11 +30,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //loop {
     // Accetta una connessione
     let (socket, _) = listener.accept()?;
+    println!("Client connesso!");
     gui::launch(socket);
     /*
     let socket_copy = TcpStream::try_clone(&socket);
     gui::launch(socket_copy);
-    println!("Client connesso!");
 
 
     // Buffer per ricevere i dati
@@ -61,5 +60,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
      */
     Ok(())
-    //}
 }
