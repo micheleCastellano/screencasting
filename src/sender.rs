@@ -29,7 +29,7 @@ pub fn capture_screen(delay: Duration) -> Result<(Vec<u8>, usize, usize), Box<dy
 }
 
 pub fn send() {
-    let mut stream = TcpStream::connect("127.0.0.1:8080").unwrap();
+    let mut stream = TcpStream::connect("192.168.10.114:8080").unwrap();
     println!("Connesso al server!");
     let frame_number = 0;
     let fps60 = Duration::new(1, 0) / 60;

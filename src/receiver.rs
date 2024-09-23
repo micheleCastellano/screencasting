@@ -6,7 +6,7 @@ use crate::CHUNCK_SIZE;
 use crate::util::{Header, ChannelFrame};
 
 pub fn start(channel_s: Sender<ChannelFrame>, ctx: Context) {
-    let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
     println!("Server listening to 127.0.0.1:8080");
     let (mut stream, _) = listener.accept().unwrap();
 
@@ -15,8 +15,8 @@ pub fn start(channel_s: Sender<ChannelFrame>, ctx: Context) {
 
     loop {
         //read header
-        stream.read(&mut header_buffer).unwrap();
-        let mut header: Header = bincode::deserialize(&header_buffer[..]).unwrap();
+        stream.read(&mut header_buffer).expect("error reading header");
+        let mut header: Header = bincode::deserialize(&header_buffer[..]).expect("error deserializing header");
         let mut frame = Vec::with_capacity(header.len as usize);
 
         //read frame
@@ -37,7 +37,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, ctx: Context) {
             }
         }
         let channel_frame = ChannelFrame::new(header.image_width, header.image_height,frame);
-        channel_s.send(channel_frame).unwrap();
+        channel_s.send(channel_frame).expect("error sending channel_frame");
         ctx.request_repaint();
     }
 }
