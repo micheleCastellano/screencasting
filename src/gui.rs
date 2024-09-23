@@ -1,10 +1,12 @@
+use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
-use eframe::egui::{Context, TextureHandle};
+use eframe::egui::{Color32, ColorImage, Context, ImageData, TextureHandle, TextureOptions};
 use eframe::{egui, Frame};
 use eframe::egui::load::SizedTexture;
 use crate::gui::State::Choose;
 use crate::{receiver, sender};
+use crate::util::ChannelFrame;
 
 enum State { Choose, Sender, Receiver, Sending, Receiving }
 
@@ -18,17 +20,26 @@ impl Default for State {
 pub struct EframeApp {
     state: State,
     pub ip_addr: String,
-    channel_r: Option<Receiver<TextureHandle>>, // for receiver mode only!
+    channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
     texture: Option<TextureHandle>,
 }
 
 impl EframeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // _cc.egui_ctx.clone();
-        egui_extras::install_image_loaders(&cc.egui_ctx);
-        Self::default()
+        let mut rect =cc.egui_ctx.input(|i: &egui::InputState| i.screen_rect());
+        rect.set_height(800.0);
+        rect.set_width(1200.0);
+        Self {
+            texture: Some(cc.egui_ctx.load_texture(
+                "screencasting",
+                ImageData::Color(Arc::new(ColorImage::new([1920, 1080], Color32::TRANSPARENT))),
+                TextureOptions::default(),
+            )),
+            ..Default::default()
+        }
     }
 }
+
 
 impl eframe::App for EframeApp {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
@@ -87,7 +98,6 @@ impl eframe::App for EframeApp {
                         });
                     }
                 });
-                // ctx.request_repaint();
             }
             State::Sending => {
                 egui::CentralPanel::default().show(ctx, |ui| {
@@ -97,13 +107,30 @@ impl eframe::App for EframeApp {
             State::Receiving => {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.heading("Receiving!");
+
+                    //get new frame
                     if let Some(r) = &mut self.channel_r {
-                        if let Ok(texture) = r.try_recv() {
-                            self.texture = Some(texture);
+                        if let Ok(channel_frame) = r.try_recv() {
+                            if let Some(texture) = &mut self.texture {
+                                texture.set(
+                                    ColorImage::from_rgba_unmultiplied(
+                                        [channel_frame.w as usize, channel_frame.h as usize],
+                                        &channel_frame.data),
+                                    // ColorImage::from_rgba_premultiplied ([1920, 1080], &buffer),
+                                    TextureOptions::default(),
+                                );
+                            }
                         }
                     }
-                    if let Some(texture) = &self.texture {
-                        ui.image(SizedTexture::new(texture, texture.size_vec2()));
+
+                    //show currently frame
+                    if let Some(texture) = &mut self.texture {
+                        ui.add(
+                            egui::Image::from_texture(SizedTexture::from_handle(texture))
+                                .max_height(600.0)
+                                .max_width(800.0)
+                                .rounding(10.0),
+                        );
                     }
                 });
             }

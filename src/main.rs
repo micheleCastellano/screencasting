@@ -1,15 +1,24 @@
 mod gui;
 mod sender;
 mod receiver;
-// mod gui_example;
+mod util;
 
+use std::default::Default;
+use eframe::egui::ViewportBuilder;
 use gui::EframeApp;
-// use gui_example::UserInterface;
 
+const CHUNCK_SIZE: usize = 64 * 1024; //65536
 #[tokio::main]
 async fn main() {
-
-    let native_options = eframe::NativeOptions::default();
+    let viewport = ViewportBuilder {
+        maximized: Some(true),
+        .. Default::default()
+    };
+    let native_options = eframe::NativeOptions {
+        viewport,
+        centered: true,
+        .. Default::default()
+    };
 
     let _ = eframe::run_native(
         "Screencastin app",

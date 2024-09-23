@@ -14,4 +14,5 @@ scrap = "*"          # Per catturare lo schermo
 png = "*"
 repng = "*"
 image = "*"
-egui_extras = {version = "*", features = ["all_loaders"]}
+bincode = "*"
+serde = { version = "1.0.210", features = ["derive"] }
