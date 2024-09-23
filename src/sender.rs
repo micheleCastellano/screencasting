@@ -33,8 +33,10 @@ pub fn send() {
     let mut stream = TcpStream::connect("127.0.0.1:8080").unwrap();
     println!("Connesso al server!");
     let frame_number = 0;
-
+    let one_second = Duration::new(1, 0);
+    let one_frame = one_second / 60;
     loop {
+        thread::sleep(one_frame);
         let (mut frame, w, h) = capture_screen().unwrap();
 
         // Scambia i canali di colore (rosso e blu)
