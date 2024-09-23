@@ -6,9 +6,8 @@ use std::io::Write;
 use std::net::TcpStream;
 use crate::util::Header;
 
-pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
-    let one_second = Duration::new(1, 0);
-    let one_frame = one_second / 60;
+
+pub fn capture_screen(delay: Duration) -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
     let display = Display::primary().expect("Couldn't find primary display.");
     let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
 
@@ -19,7 +18,7 @@ pub fn capture_screen() -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::E
             }
             Err(error) => {
                 if error.kind() == WouldBlock {
-                    thread::sleep(one_frame);
+                    thread::sleep(delay);
                     continue;
                 } else {
                     return Err(Box::new(error));
@@ -33,11 +32,11 @@ pub fn send() {
     let mut stream = TcpStream::connect("127.0.0.1:8080").unwrap();
     println!("Connesso al server!");
     let frame_number = 0;
-    let one_second = Duration::new(1, 0);
-    let one_frame = one_second / 60;
+    let fps60 = Duration::new(1, 0) / 60;
+
     loop {
-        thread::sleep(one_frame);
-        let (mut frame, w, h) = capture_screen().unwrap();
+        thread::sleep(fps60);
+        let (mut frame, w, h) = capture_screen(fps60).unwrap();
 
         // Scambia i canali di colore (rosso e blu)
         for chunk in frame.chunks_exact_mut(4) {
