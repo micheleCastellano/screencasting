@@ -26,4 +26,3 @@ impl ChannelFrame {
         Self { w, h, data }
     }
 }
-

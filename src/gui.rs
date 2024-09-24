@@ -11,9 +11,7 @@ use crate::util::ChannelFrame;
 enum State { Choose, Sender, Receiver, Sending, Receiving }
 
 impl Default for State {
-    fn default() -> Self {
-        Choose
-    }
+    fn default() -> Self { Choose }
 }
 
 #[derive(Default)]
@@ -39,7 +37,6 @@ impl EframeApp {
         }
     }
 }
-
 
 impl eframe::App for EframeApp {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {

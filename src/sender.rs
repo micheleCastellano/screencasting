@@ -6,7 +6,6 @@ use std::io::Write;
 use std::net::TcpStream;
 use crate::util::Header;
 
-
 pub fn capture_screen(delay: Duration) -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
     let display = Display::primary().expect("Couldn't find primary display.");
     let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
@@ -38,7 +37,7 @@ pub fn send() {
         thread::sleep(fps60);
         let (mut frame, w, h) = capture_screen(fps60).unwrap();
 
-        // Scambia i canali di colore (rosso e blu)
+        // Scambia i canali di colore
         for chunk in frame.chunks_exact_mut(4) {
             chunk.swap(0, 2); // Scambia il canale rosso (0) con quello blu (2)
         }
