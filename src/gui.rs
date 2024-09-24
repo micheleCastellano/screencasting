@@ -6,7 +6,7 @@ use eframe::{egui, Frame};
 use eframe::egui::load::SizedTexture;
 use crate::gui::State::Choose;
 use crate::{receiver, sender};
-use crate::util::ChannelFrame;
+use crate::util::ChannelFRAME;
 
 enum State { Choose, Sender, Receiver, Sending, Receiving }
 
@@ -20,17 +20,14 @@ impl Default for State {
 pub struct EframeApp {
     state: State,
     pub ip_addr: String,
-    channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
-    texture: Option<TextureHandle>,
+    channel_r: Option<Receiver<ChannelFRAME>>, // for receiver mode only!
+    texture_handle: Option<TextureHandle>,
 }
 
 impl EframeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut rect =cc.egui_ctx.input(|i: &egui::InputState| i.screen_rect());
-        rect.set_height(800.0);
-        rect.set_width(1200.0);
         Self {
-            texture: Some(cc.egui_ctx.load_texture(
+            texture_handle: Some(cc.egui_ctx.load_texture(
                 "screencasting",
                 ImageData::Color(Arc::new(ColorImage::new([1920, 1080], Color32::TRANSPARENT))),
                 TextureOptions::default(),
@@ -111,10 +108,10 @@ impl eframe::App for EframeApp {
                     //get new frame
                     if let Some(r) = &mut self.channel_r {
                         if let Ok(channel_frame) = r.try_recv() {
-                            if let Some(texture) = &mut self.texture {
+                            if let Some(texture) = &mut self.texture_handle {
                                 texture.set(
                                     ColorImage::from_rgba_unmultiplied(
-                                        [channel_frame.w as usize, channel_frame.h as usize],
+                                        [channel_frame.w, channel_frame.h],
                                         &channel_frame.data),
                                     // ColorImage::from_rgba_premultiplied ([1920, 1080], &buffer),
                                     TextureOptions::default(),
@@ -124,7 +121,7 @@ impl eframe::App for EframeApp {
                     }
 
                     //show currently frame
-                    if let Some(texture) = &mut self.texture {
+                    if let Some(texture) = &mut self.texture_handle {
                         ui.add(
                             egui::Image::from_texture(SizedTexture::from_handle(texture))
                                 .max_height(600.0)

@@ -7,17 +7,17 @@ use std::default::Default;
 use eframe::egui::ViewportBuilder;
 use gui::EframeApp;
 
-const CHUNCK_SIZE: usize = 64 * 1024; //65536
+const CHUNK_SIZE: usize = 64 * 1024; //65536
 #[tokio::main]
 async fn main() {
     let viewport = ViewportBuilder {
-        maximized: Some(true),
-        .. Default::default()
+        // maximized: Some(true),
+        ..Default::default()
     };
     let native_options = eframe::NativeOptions {
         viewport,
         centered: true,
-        .. Default::default()
+        ..Default::default()
     };
 
     let _ = eframe::run_native(

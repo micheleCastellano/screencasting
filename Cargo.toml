@@ -11,8 +11,9 @@ eframe = { version = "*", features = [
 ] }
 tokio = { version = "*", features = ["full"] }  # Per gestione asincrona
 scrap = "*"          # Per catturare lo schermo
-png = "*"
-repng = "*"
-image = "*"
+#png = "*"
+#repng = "*"
+#image = "0.24.9"
+image = "0.24.9"
 bincode = "*"
 serde = { version = "1.0.210", features = ["derive"] }
