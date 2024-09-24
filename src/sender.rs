@@ -37,9 +37,8 @@ pub fn send() {
     println!("Connesso al server!");
     let frame_number = 0;
     let fps60 = Duration::new(1, 0) / 60;
-    let mut i = 0;
-    while i < 4 {
-        i = i + 1;
+
+    loop {
         thread::sleep(fps60);
         let (mut frame, w, h) = capture_screen(fps60).unwrap();
 
