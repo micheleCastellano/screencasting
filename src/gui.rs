@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::mpsc::{channel, Receiver};
+//use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use eframe::egui::{Color32, ColorImage, Context, ImageData, TextureHandle, TextureOptions};
 use eframe::{egui, Frame};
@@ -7,6 +7,7 @@ use eframe::egui::load::SizedTexture;
 use crate::gui::State::Choose;
 use crate::{receiver, sender};
 use crate::util::ChannelFrame;
+use crossbeam::channel;
 
 enum State { Choose, Sender, Receiver, Sending, Receiving }
 
@@ -18,7 +19,8 @@ impl Default for State {
 pub struct EframeApp {
     state: State,
     pub ip_addr: String,
-    channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
+    //channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
+    channel_r: Option<crossbeam::channel::Receiver<ChannelFrame>>, // for receiver mode only!
     texture: Option<TextureHandle>,
 }
 
@@ -87,9 +89,11 @@ impl eframe::App for EframeApp {
                     if ui.button("Receive").clicked() {
                         self.state = State::Receiving;
 
-                        let (s, r) = channel();
+                        let (s, r) = crossbeam::channel::bounded::<ChannelFrame>(10);
+                        //let (s, r) = crossbeam::channel::bounded(100);
                         self.channel_r = Some(r);
                         let ctx_clone = ctx.clone();
+
                         thread::spawn(move || {
                             receiver::start(s, ctx_clone);
                         });

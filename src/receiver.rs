@@ -1,6 +1,7 @@
 use std::io::{Read};
 use std::net::{TcpListener};
-use std::sync::mpsc::Sender;
+//use std::sync::mpsc::Sender;
+use crossbeam::channel::Sender;
 use eframe::egui::Context;
 use crate::CHUNCK_SIZE;
 use crate::util::{Header, ChannelFrame};
@@ -37,7 +38,11 @@ pub fn start(channel_s: Sender<ChannelFrame>, ctx: Context) {
             }
         }
         let channel_frame = ChannelFrame::new(header.image_width, header.image_height,frame);
-        channel_s.send(channel_frame).expect("error sending channel_frame");
+        //channel_s.send(channel_frame).expect("error sending channel_frame");
+        match channel_s.try_send(channel_frame) {
+            Ok(_) => (),
+            Err(e) => println!("frame dropped! {}", e),
+        }
         ctx.request_repaint();
     }
 }

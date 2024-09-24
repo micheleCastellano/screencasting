@@ -9,14 +9,19 @@ use crate::util::Header;
 pub fn capture_screen(delay: Duration) -> Result<(Vec<u8>, usize, usize), Box<dyn std::error::Error>> {
     let display = Display::primary().expect("Couldn't find primary display.");
     let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
+    let mut last_frame: Option<Vec<u8>> = None; // Salva l'ultimo frame
 
     loop {
         match capturer.frame() {
             Ok(frame) => {
-                return Ok((frame.to_vec(), capturer.width(), capturer.height()));
+                last_frame = Some(frame.to_vec()); // Salva il frame attuale
+                return Ok((last_frame.clone().unwrap(), capturer.width(), capturer.height()));
             }
             Err(error) => {
                 if error.kind() == WouldBlock {
+                    if let Some(ref frame) = last_frame {
+                        return Ok((frame.clone(), capturer.width(), capturer.height())); // Restituisci l'ultimo frame valido
+                    }
                     thread::sleep(delay);
                     continue;
                 } else {
@@ -28,7 +33,7 @@ pub fn capture_screen(delay: Duration) -> Result<(Vec<u8>, usize, usize), Box<dy
 }
 
 pub fn send() {
-    let mut stream = TcpStream::connect("192.168.10.114:8080").unwrap();
+    let mut stream = TcpStream::connect("192.168.1.2:8080").unwrap();
     println!("Connesso al server!");
     let frame_number = 0;
     let fps60 = Duration::new(1, 0) / 60;
