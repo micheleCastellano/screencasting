@@ -14,32 +14,33 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
     let mut frame_buffer = [0; CHUNK_SIZE];
     loop {
         // Read header
-        stream.read_exact(&mut header_buffer).expect("error reading header");
+        if let Err(e) = stream.read_exact(&mut header_buffer) {
+            println!("Sender closed: {e}");
+            break;
+        }
         let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
 
         // Read frame
         let mut frame = Vec::with_capacity(header.len);
         while header.len > 0 {
-            match stream.read_exact(&mut frame_buffer) {
-                Ok(_) => {
-                    let end;
-                    if CHUNK_SIZE > header.len {
-                        end = header.len;
-                        header.len = 0;
-                    } else {
-                        end = CHUNK_SIZE;
-                        header.len = header.len - CHUNK_SIZE;
-                    }
-                    for i in 0..end {
-                        frame.push(frame_buffer[i]);
-                    }
-                }
-                Err(e) => {
-                    println!("Error stream read frame - {}", e);
-                    return;
-                }
+            if let Err(e) = stream.read_exact(&mut frame_buffer) {
+                println!("Sender closed: {e}");
+                break;
+            }
+
+            let end;
+            if CHUNK_SIZE > header.len {
+                end = header.len;
+                header.len = 0;
+            } else {
+                end = CHUNK_SIZE;
+                header.len = header.len - CHUNK_SIZE;
+            }
+            for i in 0..end {
+                frame.push(frame_buffer[i]);
             }
         }
+
         let channel_frame = ChannelFrame::new(header.frame_width, header.frame_height, frame);
         if let Err(e) = channel_s.send(channel_frame) {
             println!("Impossible sending frame via channel: {:?}", e);

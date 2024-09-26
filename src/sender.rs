@@ -40,7 +40,7 @@ fn scap_init() -> Result<Capturer, ScapError> {
         show_highlight: true,
         targets,
         // excluded_targets: None,
-        output_type: scap::frame::FrameType::RGB,
+        output_type: scap::frame::FrameType::BGRAFrame,
         // output_resolution: scap::capturer::Resolution::_720p,
         // source_rect: Some(Area {
         //     origin: Point { x: 0.0, y: 0.0 },
@@ -54,10 +54,11 @@ fn scap_init() -> Result<Capturer, ScapError> {
     Ok(Capturer::new(options))
 }
 
-fn from_bgra_to_rgba(mut frame: Vec<u8>) {
+fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8>{
     for chunk in frame.chunks_exact_mut(4) {
         chunk.swap(0, 2); // Scambia il canale rosso (0) con quello blu (2)
     }
+    frame
 }
 pub fn send(ip_addr: String) {
     let mut stream = TcpStream::connect(format!("{}:8080", ip_addr)).unwrap();
@@ -70,7 +71,8 @@ pub fn send(ip_addr: String) {
 
     loop {
         thread::sleep(fps60);
-        if let Frame::RGB(mut frame) = capturer.get_next_frame().unwrap() {
+        let next_frame = capturer.get_next_frame().unwrap();
+        if let Frame::BGRA(mut frame) =  next_frame{
 
             // Send header
             let header = Header::new(frame_number, frame.data.len(), frame.width as usize, frame.height as usize);
@@ -79,6 +81,7 @@ pub fn send(ip_addr: String) {
                 println!("Server closed: {}", e);
                 break;
             }
+            frame.data = from_bgra_to_rgba(frame.data);
 
             // Send jpeg
             let frame_pad = CHUNK_SIZE - (frame.data.len() % CHUNK_SIZE);
@@ -88,11 +91,11 @@ pub fn send(ip_addr: String) {
                 }
             }
             if let Err(e) = stream.write_all(&frame.data){
-                println!("Server closed: {e}");
+                println!("Server closed: {}", e);
                 break;
             }
         } else {
-            println!("The frame is not RGB format");
+            println!("Sender side: the captured frame format is not supported.");
             break;
         }
     }

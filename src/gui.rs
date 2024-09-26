@@ -32,7 +32,7 @@ impl EframeApp {
                 ImageData::Color(Arc::new(ColorImage::new([1920, 1080], Color32::TRANSPARENT))),
                 TextureOptions::default(),
             )),
-            ip_addr: "127.0.0.1".to_string(),
+            ip_addr: local_ip_address::local_ip().unwrap().to_string(),
             ..Default::default()
         }
     }
@@ -120,9 +120,9 @@ impl eframe::App for EframeApp {
                         if let Ok(channel_frame) = r.try_recv() {
                             if let Some(texture) = &mut self.texture_handle {
                                 texture.set(
-                                    ColorImage::from_rgb([channel_frame.w, channel_frame.h], &channel_frame.data),
                                     // ColorImage::from_rgba_unmultiplied([channel_frame.w, channel_frame.h], &channel_frame.data),
-                                    // ColorImage::from_rgba_premultiplied ([channel_frame.w, channel_frame.h], &channel_frame.data),
+                                    // ColorImage::from_rgb([channel_frame.w, channel_frame.h], &channel_frame.data),
+                                    ColorImage::from_rgba_premultiplied ([channel_frame.w, channel_frame.h], &channel_frame.data),
                                     TextureOptions::default(),
                                 );
                             }
