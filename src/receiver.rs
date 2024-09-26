@@ -2,7 +2,7 @@ use std::io::Read;
 use std::net::TcpListener;
 //use std::sync::mpsc::Sender;
 use crate::util::{ChannelFrame, Header};
-use crate::CHUNCK_SIZE;
+use crate::CHUNK_SIZE;
 use crossbeam::channel::Sender;
 use eframe::egui::Context;
 
@@ -12,7 +12,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, ctx: Context) {
     let (mut stream, _) = listener.accept().unwrap();
 
     let mut header_buffer = [0; std::mem::size_of::<Header>()];
-    let mut frame_buffer = [0; CHUNCK_SIZE];
+    let mut frame_buffer = [0; CHUNK_SIZE];
 
     loop {
         //read header
@@ -31,7 +31,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, ctx: Context) {
                     return;
                 }
                 Ok(bytes_read) => {
-                    header.len = header.len - bytes_read as u32;
+                    header.len = header.len - bytes_read;
 
                     for i in 0..bytes_read {
                         frame.push(frame_buffer[i]);

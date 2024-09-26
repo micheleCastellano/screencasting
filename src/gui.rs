@@ -7,7 +7,6 @@ use eframe::egui::load::SizedTexture;
 use crate::gui::State::Choose;
 use crate::{receiver, sender};
 use crate::util::ChannelFrame;
-use crossbeam::channel;
 
 enum State { Choose, Sender, Receiver, Sending, Receiving }
 

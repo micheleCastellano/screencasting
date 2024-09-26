@@ -56,7 +56,7 @@ pub fn send() {
             chunk.swap(0, 2); // Scambia il canale rosso (0) con quello blu (2)
         }
 
-        let header = Header::new(frame_number, frame.len() as u32, w as u32, h as u32);
+        let header = Header::new(frame_number, frame.len(), w, h);
 
         let encoded: Vec<u8> = bincode::serialize(&header).unwrap();
 

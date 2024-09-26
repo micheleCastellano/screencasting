@@ -14,12 +14,12 @@ impl Header {
     }
 }
 
-pub struct ChannelFRAME {
+pub struct ChannelFrame {
     pub w: usize,
     pub h: usize,
     pub data: Vec<u8>,
 }
-impl ChannelFRAME {
+impl ChannelFrame {
     pub fn new(w: usize, h: usize, data: Vec<u8>) -> Self {
         Self { w, h, data }
     }
