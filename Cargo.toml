@@ -17,3 +17,5 @@ scrap = "*"          # Per catturare lo schermo
 image = "0.24.9"
 bincode = "*"
 serde = { version = "1.0.210", features = ["derive"] }
+crossbeam = "0.8.4"
+local-ip-address = "0.6.3"
