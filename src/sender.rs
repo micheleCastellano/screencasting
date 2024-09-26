@@ -75,7 +75,10 @@ pub fn send(ip_addr: String) {
             // Send header
             let header = Header::new(frame_number, frame.data.len(), frame.width as usize, frame.height as usize);
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
-            stream.write(&encoded_header).expect("Error stream write");
+            if let Err(e) = stream.write(&encoded_header){
+                println!("Server closed: {}", e);
+                break;
+            }
 
             // Send jpeg
             let frame_pad = CHUNK_SIZE - (frame.data.len() % CHUNK_SIZE);
@@ -84,7 +87,10 @@ pub fn send(ip_addr: String) {
                     frame.data.push(0);
                 }
             }
-            stream.write_all(&frame.data).expect("Error stream write all");
+            if let Err(e) = stream.write_all(&frame.data){
+                println!("Server closed: {e}");
+                break;
+            }
         } else {
             println!("The frame is not RGB format");
             break;

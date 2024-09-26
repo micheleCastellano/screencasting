@@ -4,16 +4,16 @@ use std::thread;
 use eframe::egui::{Color32, ColorImage, Context, ImageData, TextureHandle, TextureOptions};
 use eframe::{egui, Frame};
 use eframe::egui::load::SizedTexture;
-use crate::gui::State::Choose;
 use crate::{receiver, sender};
 use crate::util::ChannelFrame;
-
-enum State { Choose, Sender, Receiver, Sending, Receiving }
-
-impl Default for State {
-    fn default() -> Self {
-        Choose
-    }
+#[derive(Debug, Default)]
+enum State {
+    #[default]
+    Choose,
+    Sender,
+    Receiver,
+    Sending,
+    Receiving
 }
 
 #[derive(Default)]
@@ -45,7 +45,16 @@ impl eframe::App for EframeApp {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Menu", |ui| {
                     if ui.button("Reset").clicked() {
-                        self.state = Choose;
+                        match self.state {
+                            State::Sending => println!("To stop sending, you need to stop receiver app."),
+                            State::Receiving => {
+                                if let Some(rx) = self.channel_r.take() {
+                                    drop(rx);
+                                }
+                            }
+                            _ => ()
+                        }
+                        self.state = State::Choose;
                     }
                     if ui.button("Quit").clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
