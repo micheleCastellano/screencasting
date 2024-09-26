@@ -97,4 +97,5 @@ pub fn send(ip_addr: String) {
         }
     }
     capturer.stop_capture();
+    println!("Sender terminated");
 }

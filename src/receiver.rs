@@ -47,4 +47,5 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
         }
         _ctx.request_repaint();
     }
+    println!("Receiver terminated.")
 }
