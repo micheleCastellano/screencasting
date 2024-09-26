@@ -2,24 +2,25 @@ use std::io::{Read};
 use std::net::{TcpListener};
 use std::sync::mpsc::Sender;
 use eframe::egui::Context;
-use image::{ImageFormat};
 use crate::CHUNK_SIZE;
-use crate::util::{Header, ChannelFRAME};
+use crate::util::{Header, ChannelFrame};
 
-pub fn start(channel_s: Sender<ChannelFRAME>, _ctx: Context) {
-    let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-    println!("Server listening to 127.0.0.1:8080");
+pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
+    let ip_addr = local_ip_address::local_ip().unwrap().to_string();
+    let listener = TcpListener::bind(format!("{ip_addr}:8080")).unwrap();
+    println!("Server listening to {ip_addr}:8080");
     let (mut stream, _) = listener.accept().unwrap();
-    let mut chunk = [0; CHUNK_SIZE];
+    let mut header_buffer = [0; size_of::<Header>()];
+    let mut frame_buffer = [0; CHUNK_SIZE];
     loop {
         // Read header
-        stream.read_exact(&mut chunk).expect("error reading header");
-        let mut header: Header = bincode::deserialize(&chunk[0..size_of::<Header>()]).expect("error deserializing header");
-        println!("{:?}", header);
-        // Read jpeg
-        let mut jpeg = Vec::with_capacity(header.len);
+        stream.read_exact(&mut header_buffer).expect("error reading header");
+        let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
+
+        // Read frame
+        let mut frame = Vec::with_capacity(header.len);
         while header.len > 0 {
-            match stream.read_exact(&mut chunk) {
+            match stream.read_exact(&mut frame_buffer) {
                 Ok(_) => {
                     let end;
                     if CHUNK_SIZE > header.len {
@@ -30,19 +31,20 @@ pub fn start(channel_s: Sender<ChannelFRAME>, _ctx: Context) {
                         header.len = header.len - CHUNK_SIZE;
                     }
                     for i in 0..end {
-                        jpeg.push(chunk[i]);
+                        frame.push(frame_buffer[i]);
                     }
                 }
                 Err(e) => {
-                    println!("Error strem read jpeg - {}", e);
+                    println!("Error stream read frame - {}", e);
                     return;
                 }
             }
         }
-        let image = image::load_from_memory_with_format(&jpeg, ImageFormat::Jpeg).expect("Error: load_from_memory_wuth_format");
-        let rgba = image.to_rgba8();
-        let channel_jpeg = ChannelFRAME::new(header.image_width, header.image_height, rgba.into_raw());
-        channel_s.send(channel_jpeg).expect("error sending channel_jpeg");
+        let channel_frame = ChannelFrame::new(header.frame_width, header.frame_height, frame);
+        if let Err(e) = channel_s.send(channel_frame) {
+            println!("Impossible sending frame via channel: {:?}", e);
+            break;
+        }
         _ctx.request_repaint();
     }
 }

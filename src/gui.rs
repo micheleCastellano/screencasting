@@ -6,7 +6,7 @@ use eframe::{egui, Frame};
 use eframe::egui::load::SizedTexture;
 use crate::gui::State::Choose;
 use crate::{receiver, sender};
-use crate::util::ChannelFRAME;
+use crate::util::ChannelFrame;
 
 enum State { Choose, Sender, Receiver, Sending, Receiving }
 
@@ -20,7 +20,7 @@ impl Default for State {
 pub struct EframeApp {
     state: State,
     pub ip_addr: String,
-    channel_r: Option<Receiver<ChannelFRAME>>, // for receiver mode only!
+    channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
     texture_handle: Option<TextureHandle>,
 }
 
@@ -32,6 +32,7 @@ impl EframeApp {
                 ImageData::Color(Arc::new(ColorImage::new([1920, 1080], Color32::TRANSPARENT))),
                 TextureOptions::default(),
             )),
+            ip_addr: "127.0.0.1".to_string(),
             ..Default::default()
         }
     }
@@ -75,8 +76,9 @@ impl eframe::App for EframeApp {
                     });
                     if ui.button("Send").clicked() {
                         self.state = State::Sending;
+                        let ip_addr = self.ip_addr.clone();
                         thread::spawn(|| {
-                            sender::send();
+                            sender::send(ip_addr);
                         });
                     }
                 });
@@ -86,7 +88,6 @@ impl eframe::App for EframeApp {
                     ui.heading("Receiver!");
                     if ui.button("Receive").clicked() {
                         self.state = State::Receiving;
-
                         let (s, r) = channel();
                         self.channel_r = Some(r);
                         let ctx_clone = ctx.clone();
@@ -110,10 +111,9 @@ impl eframe::App for EframeApp {
                         if let Ok(channel_frame) = r.try_recv() {
                             if let Some(texture) = &mut self.texture_handle {
                                 texture.set(
-                                    ColorImage::from_rgba_unmultiplied(
-                                        [channel_frame.w, channel_frame.h],
-                                        &channel_frame.data),
-                                    // ColorImage::from_rgba_premultiplied ([1920, 1080], &buffer),
+                                    ColorImage::from_rgb([channel_frame.w, channel_frame.h], &channel_frame.data),
+                                    // ColorImage::from_rgba_unmultiplied([channel_frame.w, channel_frame.h], &channel_frame.data),
+                                    // ColorImage::from_rgba_premultiplied ([channel_frame.w, channel_frame.h], &channel_frame.data),
                                     TextureOptions::default(),
                                 );
                             }
