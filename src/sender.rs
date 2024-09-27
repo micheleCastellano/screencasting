@@ -1,7 +1,8 @@
 use std::vec::Vec;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::io::Write;
 use std::net::{TcpStream};
+use std::thread;
 use scap::capturer::{Capturer, Options};
 use scap::frame::Frame;
 use crate::CHUNK_SIZE;
@@ -36,7 +37,7 @@ fn scap_init() -> Result<Capturer, ScapError> {
     let options = Options {
         // fps: 60,
         show_cursor: true,
-        show_highlight: true,
+        show_highlight: false,
         targets,
         // excluded_targets: None,
         output_type: scap::frame::FrameType::BGRAFrame,
@@ -53,7 +54,7 @@ fn scap_init() -> Result<Capturer, ScapError> {
     Ok(Capturer::new(options))
 }
 
-fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8>{
+fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8> {
     for chunk in frame.chunks_exact_mut(4) {
         chunk.swap(0, 2); // Scambia il canale rosso (0) con quello blu (2)
     }
@@ -62,42 +63,48 @@ fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8>{
 pub fn send(ip_addr: String) {
     let mut stream = TcpStream::connect(format!("{}:8080", ip_addr)).unwrap();
     println!("Connection successed");
-    let frame_number = 0;
+    let mut frame_number = 0;
     let _fps60 = Duration::new(1, 0) / 60;
 
     let mut capturer = scap_init().unwrap();
-    capturer.start_capture();
 
     loop {
-        // thread::sleep(fps60);
-        let next_frame = capturer.get_next_frame().unwrap();
-        if let Frame::BGRA(mut frame) =  next_frame{
+        #[cfg(target_os = "macos")]{
+            thread::sleep(_fps60);
+        }
+        frame_number = frame_number + 1;
 
+        capturer.start_capture();
+        let next_frame = capturer.get_next_frame().unwrap();
+        capturer.stop_capture();
+
+        if let Frame::BGRA(mut frame) = next_frame {
             // Send header
             let header = Header::new(frame_number, frame.data.len() as u32, frame.width as u32, frame.height as u32);
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
-            if let Err(e) = stream.write(&encoded_header){
+            if let Err(e) = stream.write(&encoded_header) {
                 println!("Server closed: {}", e);
                 break;
             }
+            println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
             frame.data = from_bgra_to_rgba(frame.data);
 
-            // Send jpeg
+            // Send frame
             let frame_pad = CHUNK_SIZE - (frame.data.len() as u32 % CHUNK_SIZE);
             if frame_pad < CHUNK_SIZE {
                 for _ in 0..frame_pad {
                     frame.data.push(0);
                 }
             }
-            if let Err(e) = stream.write_all(&frame.data){
+            if let Err(e) = stream.write_all(&frame.data) {
                 println!("Server closed: {}", e);
                 break;
             }
+            println!("Frame sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
         } else {
             println!("Sender side: the captured frame format is not supported.");
             break;
         }
     }
-    capturer.stop_capture();
     println!("Sender terminated");
 }

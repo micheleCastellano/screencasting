@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
+use std::time::SystemTime;
 use eframe::egui::{Color32, ColorImage, Context, ImageData, TextureHandle, TextureOptions};
 use eframe::{egui, Frame};
 use eframe::egui::load::SizedTexture;
@@ -125,6 +126,7 @@ impl eframe::App for EframeApp {
                                     ColorImage::from_rgba_premultiplied ([channel_frame.w as usize, channel_frame.h as usize], &channel_frame.data),
                                     TextureOptions::default(),
                                 );
+                                println!("Gui got frame {}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
                             }
                         }
                     }

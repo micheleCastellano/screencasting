@@ -1,6 +1,7 @@
 use std::io::{Read};
 use std::net::{TcpListener};
 use std::sync::mpsc::Sender;
+use std::time::SystemTime;
 use eframe::egui::Context;
 use crate::CHUNK_SIZE;
 use crate::util::{Header, ChannelFrame};
@@ -19,6 +20,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
             break;
         }
         let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
+        println!("Header Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         // Read frame
         let mut frame = Vec::with_capacity(header.len as usize);
@@ -27,19 +29,19 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
                 println!("Sender closed: {e}");
                 break;
             }
-
             let end;
             if CHUNK_SIZE > header.len {
                 end = header.len;
                 header.len = 0;
             } else {
-                end = CHUNK_SIZE ;
+                end = CHUNK_SIZE;
                 header.len = header.len - CHUNK_SIZE;
             }
             for i in 0..end {
                 frame.push(frame_buffer[i as usize]);
             }
         }
+        println!("Frame Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         let channel_frame = ChannelFrame::new(header.frame_width, header.frame_height, frame);
         if let Err(e) = channel_s.send(channel_frame) {
