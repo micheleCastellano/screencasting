@@ -122,7 +122,7 @@ impl eframe::App for EframeApp {
                                 texture.set(
                                     // ColorImage::from_rgba_unmultiplied([channel_frame.w, channel_frame.h], &channel_frame.data),
                                     // ColorImage::from_rgb([channel_frame.w, channel_frame.h], &channel_frame.data),
-                                    ColorImage::from_rgba_premultiplied ([channel_frame.w, channel_frame.h], &channel_frame.data),
+                                    ColorImage::from_rgba_premultiplied ([channel_frame.w as usize, channel_frame.h as usize], &channel_frame.data),
                                     TextureOptions::default(),
                                 );
                             }

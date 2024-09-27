@@ -74,7 +74,7 @@ pub fn send(ip_addr: String) {
         if let Frame::BGRA(mut frame) =  next_frame{
 
             // Send header
-            let header = Header::new(frame_number, frame.data.len(), frame.width as usize, frame.height as usize);
+            let header = Header::new(frame_number, frame.data.len() as u32, frame.width as u32, frame.height as u32);
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
             if let Err(e) = stream.write(&encoded_header){
                 println!("Server closed: {}", e);
@@ -83,7 +83,7 @@ pub fn send(ip_addr: String) {
             frame.data = from_bgra_to_rgba(frame.data);
 
             // Send jpeg
-            let frame_pad = CHUNK_SIZE - (frame.data.len() % CHUNK_SIZE);
+            let frame_pad = CHUNK_SIZE - (frame.data.len() as u32 % CHUNK_SIZE);
             if frame_pad < CHUNK_SIZE {
                 for _ in 0..frame_pad {
                     frame.data.push(0);

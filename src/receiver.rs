@@ -11,7 +11,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
     println!("Server listening to {ip_addr}:8080");
     let (mut stream, _) = listener.accept().unwrap();
     let mut header_buffer = [0; size_of::<Header>()];
-    let mut frame_buffer = [0; CHUNK_SIZE];
+    let mut frame_buffer = [0; CHUNK_SIZE as usize];
     loop {
         // Read header
         if let Err(e) = stream.read_exact(&mut header_buffer) {
@@ -21,7 +21,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
         let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
 
         // Read frame
-        let mut frame = Vec::with_capacity(header.len);
+        let mut frame = Vec::with_capacity(header.len as usize);
         while header.len > 0 {
             if let Err(e) = stream.read_exact(&mut frame_buffer) {
                 println!("Sender closed: {e}");
@@ -33,11 +33,11 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context) {
                 end = header.len;
                 header.len = 0;
             } else {
-                end = CHUNK_SIZE;
+                end = CHUNK_SIZE ;
                 header.len = header.len - CHUNK_SIZE;
             }
             for i in 0..end {
-                frame.push(frame_buffer[i]);
+                frame.push(frame_buffer[i as usize]);
             }
         }
 
