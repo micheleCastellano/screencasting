@@ -1,9 +1,10 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::vec::Vec;
 use std::time::{Duration, SystemTime};
 use std::io::Write;
-use std::net::{TcpStream};
+use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
-use scap::capturer::{Capturer, Options};
+use scap::capturer::{Area, Capturer, Options};
 use scap::frame::Frame;
 use crate::sender::ScapError::{ScapNotSupported, ScapPermissionDenied};
 use crate::util::{Header, CHECK_STOP, CHUNK_SIZE};
@@ -13,7 +14,7 @@ enum ScapError {
     ScapNotSupported,
     ScapPermissionDenied,
 }
-fn scap_init() -> Result<Capturer, ScapError> {
+fn scap_init() -> Result<(), ScapError> {
     // Check if the platform is supported
     let supported = scap::is_supported();
     if !supported {
@@ -33,9 +34,13 @@ fn scap_init() -> Result<Capturer, ScapError> {
         }
     }
     println!("✅ Permission granted");
+    Ok(())
+}
+
+fn create_capturer(area: Area) -> Capturer{
     let targets = scap::get_targets();
     let options = Options {
-        // fps: 60,
+        fps: 30,
         show_cursor: true,
         show_highlight: false,
         targets,
@@ -49,9 +54,10 @@ fn scap_init() -> Result<Capturer, ScapError> {
         //         height: 1000.0,
         //     },
         // }),
+        source_rect: Some(area),
         ..Default::default()
     };
-    Ok(Capturer::new(options))
+    Capturer::new(options)
 }
 
 fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8> {
@@ -60,17 +66,19 @@ fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8> {
     }
     frame
 }
-pub fn send(ip_addr: String, stop_request: Arc<Mutex<bool>>) {
+
+pub fn start(ip_addr: String, stop_request: Arc<AtomicBool>, area: Arc<Mutex<Area>>) {
     let mut stream = TcpStream::connect(format!("{}:8080", ip_addr)).unwrap();
     println!("Connection successed");
     let mut frame_number = 0;
     let _fps60 = Duration::new(1, 0) / 60;
 
-    let mut capturer = scap_init().unwrap();
+    scap_init().unwrap();
+    let mut capturer:Capturer = create_capturer(area.lock().unwrap().clone());
 
     loop {
         frame_number = frame_number + 1;
-
+        
         capturer.start_capture();
         let next_frame = capturer.get_next_frame().unwrap();
         capturer.stop_capture();
@@ -81,13 +89,12 @@ pub fn send(ip_addr: String, stop_request: Arc<Mutex<bool>>) {
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
 
             if frame_number % CHECK_STOP == 0 {
-                let mutex = stop_request.lock().unwrap();
-                if *mutex == true {
+                if stop_request.load(Ordering::Relaxed) == true {
                     println!("Received stop request from gui");
                     break;
                 }
+                capturer = create_capturer(area.lock().unwrap().clone());
             }
-
 
             if let Err(e) = stream.write(&encoded_header) {
                 println!("Server closed: {}", e);

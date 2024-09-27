@@ -1,18 +1,19 @@
-use std::fs;
-use std::io::{Read};
-use std::net::{TcpListener};
+use std::{fs, sync::atomic::Ordering};
+use std::io::Read;
+use std::net::TcpListener;
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
 use std::time::SystemTime;
 use eframe::egui::Context;
-use image::{RgbaImage};
+use image::RgbaImage;
 use std::process::Command;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 use crate::util::{Header, ChannelFrame, CHECK_STOP, CHUNK_SIZE};
 
 const PATH: &str = "./tmp";
 
-pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context, stop_request: Arc<Mutex<bool>>) {
+pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context, stop_request: Arc<AtomicBool>, save_option: Arc<AtomicBool>) {
     let tokio_rt = Runtime::new().unwrap();
     let ip_addr = local_ip_address::local_ip().unwrap().to_string();
     let listener = TcpListener::bind(format!("{ip_addr}:8080")).unwrap();
@@ -31,8 +32,7 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context, stop_request: Arc<M
         println!("Header Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         if header.frame_number % CHECK_STOP == 0 {
-            let mutex = stop_request.lock().unwrap();
-            if *mutex == true {
+            if stop_request.load(Ordering::Relaxed) == true {
                 println!("Received stop request from gui");
                 break;
             }
@@ -84,7 +84,14 @@ pub fn start(channel_s: Sender<ChannelFrame>, _ctx: Context, stop_request: Arc<M
         }
         _ctx.request_repaint();
     }
-    make_video();
+
+    if save_option.load(Ordering::Relaxed) == true {
+        make_video();
+    }
+
+    if let Err(e) = fs::remove_dir_all("./tmp") {
+        println!("impossible remove dir tmp: {e}");
+    }
     println!("Receiver terminated.");
 }
 
@@ -113,7 +120,4 @@ fn make_video() {
 
 
     println!("FFmpeg status: {:?}", ffmpeg_command);
-    if let Err(e) = fs::remove_dir_all("./tmp") {
-        println!("impossible remove dir tmp: {e}");
-    }
 }
