@@ -7,9 +7,7 @@ use std::default::Default;
 use eframe::egui::ViewportBuilder;
 use gui::EframeApp;
 
-const CHUNK_SIZE: u32 = 64 * 1024; //65536
-#[tokio::main]
-async fn main() {
+fn main() {
     let viewport = ViewportBuilder {
         // maximized: Some(true),
         ..Default::default()

@@ -2,12 +2,12 @@ use std::vec::Vec;
 use std::time::{Duration, SystemTime};
 use std::io::Write;
 use std::net::{TcpStream};
-use std::thread;
+use std::sync::{Arc, Mutex};
 use scap::capturer::{Capturer, Options};
 use scap::frame::Frame;
-use crate::CHUNK_SIZE;
 use crate::sender::ScapError::{ScapNotSupported, ScapPermissionDenied};
-use crate::util::Header;
+use crate::util::{Header, CHECK_STOP,CHUNK_SIZE};
+
 #[derive(Debug)]
 enum ScapError {
     ScapNotSupported,
@@ -41,7 +41,7 @@ fn scap_init() -> Result<Capturer, ScapError> {
         targets,
         // excluded_targets: None,
         output_type: scap::frame::FrameType::BGRAFrame,
-        output_resolution: scap::capturer::Resolution::_480p,
+        output_resolution: scap::capturer::Resolution::_720p,
         // source_rect: Some(Area {
         //     origin: Point { x: 0.0, y: 0.0 },
         //     size: Size {
@@ -60,7 +60,7 @@ fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8> {
     }
     frame
 }
-pub fn send(ip_addr: String) {
+pub fn send(ip_addr: String, stop_request : Arc<Mutex<bool>>) {
     let mut stream = TcpStream::connect(format!("{}:8080", ip_addr)).unwrap();
     println!("Connection successed");
     let mut frame_number = 0;
@@ -69,9 +69,6 @@ pub fn send(ip_addr: String) {
     let mut capturer = scap_init().unwrap();
 
     loop {
-        #[cfg(target_os = "macos")]{
-            thread::sleep(_fps60);
-        }
         frame_number = frame_number + 1;
 
         capturer.start_capture();
@@ -82,10 +79,23 @@ pub fn send(ip_addr: String) {
             // Send header
             let header = Header::new(frame_number, frame.data.len() as u32, frame.width as u32, frame.height as u32);
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
+
+            if frame_number % CHECK_STOP == 0{
+                let mutex = stop_request.lock().unwrap();
+                if *mutex == true{
+                    println!("Received stop request from gui");
+                    break;
+                }
+            }
+
+
             if let Err(e) = stream.write(&encoded_header) {
                 println!("Server closed: {}", e);
                 break;
             }
+
+
+
             println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
             frame.data = from_bgra_to_rgba(frame.data);
 

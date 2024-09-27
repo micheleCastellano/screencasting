@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use std::time::SystemTime;
@@ -14,7 +14,7 @@ enum State {
     Sender,
     Receiver,
     Sending,
-    Receiving
+    Receiving,
 }
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub struct EframeApp {
     pub ip_addr: String,
     channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
     texture_handle: Option<TextureHandle>,
+    stop_request: Arc<Mutex<bool>>,
 }
 
 impl EframeApp {
@@ -47,11 +48,8 @@ impl eframe::App for EframeApp {
                 ui.menu_button("Menu", |ui| {
                     if ui.button("Reset").clicked() {
                         match self.state {
-                            State::Sending => println!("To stop sending, you need to stop receiver app."),
-                            State::Receiving => {
-                                if let Some(rx) = self.channel_r.take() {
-                                    drop(rx);
-                                }
+                            State::Sending | State::Receiving => {
+                                *self.stop_request.lock().unwrap() = true;
                             }
                             _ => ()
                         }
@@ -87,8 +85,12 @@ impl eframe::App for EframeApp {
                     if ui.button("Send").clicked() {
                         self.state = State::Sending;
                         let ip_addr = self.ip_addr.clone();
+                        let mut mutex = self.stop_request.lock().unwrap();
+                        *mutex = false;
+                        drop(mutex);
+                        let stop_request = self.stop_request.clone();
                         thread::spawn(|| {
-                            sender::send(ip_addr);
+                            sender::send(ip_addr, stop_request);
                         });
                     }
                 });
@@ -101,8 +103,12 @@ impl eframe::App for EframeApp {
                         let (s, r) = channel();
                         self.channel_r = Some(r);
                         let ctx_clone = ctx.clone();
+                        let mut mutex = self.stop_request.lock().unwrap();
+                        *mutex = false;
+                        drop(mutex);
+                        let stop_request = self.stop_request.clone();
                         thread::spawn(move || {
-                            receiver::start(s, ctx_clone);
+                            receiver::start(s, ctx_clone, stop_request);
                         });
                     }
                 });
@@ -123,7 +129,7 @@ impl eframe::App for EframeApp {
                                 texture.set(
                                     // ColorImage::from_rgba_unmultiplied([channel_frame.w, channel_frame.h], &channel_frame.data),
                                     // ColorImage::from_rgb([channel_frame.w, channel_frame.h], &channel_frame.data),
-                                    ColorImage::from_rgba_premultiplied ([channel_frame.w as usize, channel_frame.h as usize], &channel_frame.data),
+                                    ColorImage::from_rgba_premultiplied([channel_frame.w as usize, channel_frame.h as usize], &channel_frame.data),
                                     TextureOptions::default(),
                                 );
                                 println!("Gui got frame {}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());

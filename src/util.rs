@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+pub const CHECK_STOP: u32 = 50;
+pub const CHUNK_SIZE: u32 = 64 * 1024; //65536
+
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Header {
     pub frame_number: u32,
