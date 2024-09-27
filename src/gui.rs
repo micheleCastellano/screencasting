@@ -2,12 +2,14 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use std::time::SystemTime;
-use eframe::egui::{Color32, ColorImage, Context, ImageData, TextureHandle, TextureOptions};
+use eframe::egui::{Color32, ColorImage, Context, ImageData, Key, TextureHandle, TextureOptions, Ui};
 use eframe::{egui, Frame};
 use eframe::egui::load::SizedTexture;
+use serde::{Deserialize, Serialize};
 use crate::{receiver, sender};
 use crate::util::ChannelFrame;
-#[derive(Debug, Default)]
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 enum State {
     #[default]
     Choose,
@@ -15,38 +17,78 @@ enum State {
     Receiver,
     Sending,
     Receiving,
+    Hotkey,
 }
-
+#[derive(Default, Serialize, Deserialize)]
+struct Backup {
+    pub ip_addr: String,
+    home_button: String,
+    send_button: String,
+    receive_button: String,
+}
+impl Backup {
+    fn new(
+        ip_addr: String,
+        home_button: String,
+        send_button: String,
+        receive_button: String,
+    ) -> Self {
+        Self {
+            ip_addr,
+            home_button,
+            send_button,
+            receive_button,
+        }
+    }
+}
 #[derive(Default)]
 pub struct EframeApp {
     state: State,
     pub ip_addr: String,
-    channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
+
+    home_button: String,
+    send_button: String,
+    receive_button: String,
+
     texture_handle: Option<TextureHandle>,
+    channel_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
     stop_request: Arc<Mutex<bool>>,
 }
 
+
 impl EframeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        Self {
+        let mut app = Self {
             texture_handle: Some(cc.egui_ctx.load_texture(
                 "screencasting",
                 ImageData::Color(Arc::new(ColorImage::new([1920, 1080], Color32::TRANSPARENT))),
                 TextureOptions::default(),
             )),
-            ip_addr: local_ip_address::local_ip().unwrap().to_string(),
             ..Default::default()
+        };
+
+        if let Some(storage) = cc.storage {
+            let backup: Backup = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+
+            app.ip_addr = backup.ip_addr;
+            app.home_button = backup.home_button;
+            app.send_button = backup.send_button;
+            app.receive_button = backup.receive_button;
         }
+
+        app
     }
 }
 
 
 impl eframe::App for EframeApp {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+        //top panel
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
+                //menu
                 ui.menu_button("Menu", |ui| {
-                    if ui.button("Reset").clicked() {
+                    if ui.button("Home").clicked() {
                         match self.state {
                             State::Sending | State::Receiving => {
                                 *self.stop_request.lock().unwrap() = true;
@@ -55,28 +97,51 @@ impl eframe::App for EframeApp {
                         }
                         self.state = State::Choose;
                     }
+                    if ui.button("Hotkey").clicked() {
+                        self.state = State::Hotkey;
+                    }
                     if ui.button("Quit").clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
+
                 ui.add_space(16.0);
                 egui::widgets::global_dark_light_mode_buttons(ui);
             })
         });
 
-        match self.state {
-            State::Choose => {
-                egui::CentralPanel::default().show(ctx, |ui| {
+        //central panel
+        egui::CentralPanel::default().show(ctx, |ui| {
+
+            // hotkey support
+            {
+                if !self.home_button.is_empty() {
+                    if ctx.input(|i| i.key_pressed(Key::from_name(&self.home_button).unwrap())) {
+                        self.state = State::Choose;
+                    }
+                }
+                if !self.send_button.is_empty() {
+                    if ctx.input(|i| i.key_pressed(Key::from_name(&self.send_button).unwrap())) {
+                        self.state = State::Sender;
+                    }
+                }
+                if !self.receive_button.is_empty() {
+                    if ctx.input(|i| i.key_pressed(Key::from_name(&self.receive_button).unwrap())) {
+                        self.state = State::Receiver;
+                    }
+                }
+            }
+
+            match self.state {
+                State::Choose => {
                     ui.heading("Wellcome!");
                     ui.horizontal(|ui| {
                         ui.label("Do you want to send or receive a screen casting?");
                         if ui.button("Send").clicked() { self.state = State::Sender; }
                         if ui.button("Receive").clicked() { self.state = State::Receiver; }
                     });
-                });
-            }
-            State::Sender => {
-                egui::CentralPanel::default().show(ctx, |ui| {
+                }
+                State::Sender => {
                     ui.heading("Sender!");
                     ui.horizontal(|ui| {
                         ui.label("Insert Receiver's IP address: ");
@@ -93,10 +158,8 @@ impl eframe::App for EframeApp {
                             sender::send(ip_addr, stop_request);
                         });
                     }
-                });
-            }
-            State::Receiver => {
-                egui::CentralPanel::default().show(ctx, |ui| {
+                }
+                State::Receiver => {
                     ui.heading("Receiver!");
                     if ui.button("Receive").clicked() {
                         self.state = State::Receiving;
@@ -111,15 +174,11 @@ impl eframe::App for EframeApp {
                             receiver::start(s, ctx_clone, stop_request);
                         });
                     }
-                });
-            }
-            State::Sending => {
-                egui::CentralPanel::default().show(ctx, |ui| {
+                }
+                State::Sending => {
                     ui.heading("Sending!");
-                });
-            }
-            State::Receiving => {
-                egui::CentralPanel::default().show(ctx, |ui| {
+                }
+                State::Receiving => {
                     ui.heading("Receiving!");
 
                     //get new frame
@@ -146,14 +205,37 @@ impl eframe::App for EframeApp {
                                 .rounding(10.0),
                         );
                     }
-                });
+                }
+                State::Hotkey => {
+                    view_or_customize_hotkey("Home key", &mut self.home_button, ui);
+                    view_or_customize_hotkey("Send key", &mut self.send_button, ui);
+                    view_or_customize_hotkey("Receive key", &mut self.receive_button, ui);
+                }
             }
-        }
+        });
 
+        //bottom panel
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.vertical_centered(|ui| {
                 ui.label("Screen casting app developed with rust");
-            })
+            });
         });
     }
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let backup = Backup::new(
+            self.ip_addr.clone(),
+            self.home_button.clone(),
+            self.send_button.clone(),
+            self.receive_button.clone(),
+        );
+
+        eframe::set_value(storage, eframe::APP_KEY, &backup);
+    }
+}
+
+fn view_or_customize_hotkey(key: &str, value: &mut String, ui: &mut Ui) {
+    ui.horizontal(|ui| {
+        ui.label(key);
+        ui.text_edit_singleline(value);
+    });
 }

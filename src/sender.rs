@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use scap::capturer::{Capturer, Options};
 use scap::frame::Frame;
 use crate::sender::ScapError::{ScapNotSupported, ScapPermissionDenied};
-use crate::util::{Header, CHECK_STOP,CHUNK_SIZE};
+use crate::util::{Header, CHECK_STOP, CHUNK_SIZE};
 
 #[derive(Debug)]
 enum ScapError {
@@ -60,7 +60,7 @@ fn from_bgra_to_rgba(mut frame: Vec<u8>) -> Vec<u8> {
     }
     frame
 }
-pub fn send(ip_addr: String, stop_request : Arc<Mutex<bool>>) {
+pub fn send(ip_addr: String, stop_request: Arc<Mutex<bool>>) {
     let mut stream = TcpStream::connect(format!("{}:8080", ip_addr)).unwrap();
     println!("Connection successed");
     let mut frame_number = 0;
@@ -80,9 +80,9 @@ pub fn send(ip_addr: String, stop_request : Arc<Mutex<bool>>) {
             let header = Header::new(frame_number, frame.data.len() as u32, frame.width as u32, frame.height as u32);
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
 
-            if frame_number % CHECK_STOP == 0{
+            if frame_number % CHECK_STOP == 0 {
                 let mutex = stop_request.lock().unwrap();
-                if *mutex == true{
+                if *mutex == true {
                     println!("Received stop request from gui");
                     break;
                 }
@@ -93,7 +93,6 @@ pub fn send(ip_addr: String, stop_request : Arc<Mutex<bool>>) {
                 println!("Server closed: {}", e);
                 break;
             }
-
 
 
             println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
