@@ -1,8 +1,7 @@
+use scap::capturer::Area;
 use serde::{Deserialize, Serialize};
 
-pub const CHECK_STOP: u32 = 50;
 pub const CHUNK_SIZE: u32 = 64 * 1024; //65536
-
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Header {
@@ -26,6 +25,41 @@ pub struct ChannelFrame {
 impl ChannelFrame {
     pub fn new(w: u32, h: u32, data: Vec<u8>) -> Self {
         Self { w, h, data }
+    }
+}
+
+#[derive(Default)]
+pub enum MessageType {
+    #[default]
+    Stop,
+    Area,
+    Save,
+}
+
+#[derive(Default)]
+pub struct Message {
+    pub message_type: MessageType,
+    pub area: Area,
+    pub save_option: bool,
+}
+
+impl Message {
+    pub fn stop_request() -> Self {
+        Self::default()
+    }
+    pub fn save_request(save_option: bool) -> Self {
+        Self {
+            message_type: MessageType::Save,
+            save_option,
+            ..Default::default()
+        }
+    }
+    pub fn area_request(area: Area) -> Self {
+        Self {
+            message_type: MessageType::Area,
+            area,
+            ..Default::default()
+        }
     }
 }
 
