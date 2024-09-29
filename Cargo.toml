@@ -19,3 +19,4 @@ serde = { version = "1.0.210", features = ["derive"] }
 scap = "*"
 local-ip-address = "*"
 rdev = "*"
+device_query = "2.1.0"

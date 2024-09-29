@@ -1,13 +1,17 @@
-use std::collections::HashMap;
 use crate::util::{ChannelFrame, Message};
 use crate::{receiver, sender};
+use device_query::{DeviceQuery, DeviceState, MouseState};
 use eframe::egui::load::SizedTexture;
-use eframe::egui::{Color32, ColorImage, Context, ImageData, Key, TextureHandle, TextureOptions, Ui, UiBuilder, Pos2, Stroke, LayerId, Id, Sense, Rect, Vec2};
+use eframe::egui::{
+    Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke,
+    TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+};
 use eframe::{egui, emath, Frame};
 use scap::capturer::{Area, Point, Size};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::SystemTime;
@@ -38,10 +42,7 @@ struct Backup {
 }
 impl Backup {
     fn new(ip_addr: String, hotkeys: HashMap<String, String>) -> Self {
-        Self {
-            ip_addr,
-            hotkeys,
-        }
+        Self { ip_addr, hotkeys }
     }
 }
 #[derive(Default)]
@@ -61,6 +62,8 @@ pub struct EframeApp {
     screen_width_max: u32,
     screen_height_max: u32,
     sel_opt_modify: bool,
+    drag_state: DragState,
+    modify_by_drag: bool,
 
     // annotation tool support
     lines: Vec<Vec<Pos2>>,
@@ -73,12 +76,27 @@ pub struct EframeApp {
     join_handle: Option<JoinHandle<()>>,
     save_option: bool,
 }
+
+#[derive(Default)]
+struct DragState {
+    start: Option<(i32, i32)>,
+    end: Option<(i32, i32)>,
+    is_dragging: bool,
+}
+
 impl EframeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let (width, height) = rdev::display_size().unwrap();
 
         let mut app = Self {
-            texture_handle: Some(cc.egui_ctx.load_texture("screencasting", ImageData::Color(Arc::new(ColorImage::new([1920, 1080], Color32::TRANSPARENT))), TextureOptions::default())),
+            texture_handle: Some(cc.egui_ctx.load_texture(
+                "screencasting",
+                ImageData::Color(Arc::new(ColorImage::new(
+                    [1920, 1080],
+                    Color32::TRANSPARENT,
+                ))),
+                TextureOptions::default(),
+            )),
             screen_width_max: width as u32,
             screen_height_max: height as u32,
             stroke: Stroke::new(1.0, Color32::from_rgb(25, 200, 100)),
@@ -90,6 +108,8 @@ impl EframeApp {
                 },
             },
             sel_opt_modify: true,
+            drag_state: DragState::default(),
+            modify_by_drag: false,
             ..Default::default()
         };
 
@@ -101,12 +121,14 @@ impl EframeApp {
             app.hotkeys.insert(SECT_HOME.to_string(), "".to_string());
             app.hotkeys.insert(SECT_SEND.to_string(), "".to_string());
             app.hotkeys.insert(SECT_RECEIVE.to_string(), "".to_string());
-            app.hotkeys.insert(SECT_ANNOTATION.to_string(), "".to_string());
+            app.hotkeys
+                .insert(SECT_ANNOTATION.to_string(), "".to_string());
             app.hotkeys.insert(SECT_QUIT.to_string(), "".to_string());
         }
 
         app
     }
+
     fn selection_options(&mut self, ui: &mut Ui) {
         ui.group(|ui| {
             if !self.sel_opt_modify {
@@ -124,31 +146,82 @@ impl EframeApp {
                     ui.horizontal(|ui| {
                         ui.label("x");
                         ui.add_space(27.0);
-                        ui.add(egui::DragValue::new(&mut self.area.origin.x)
-                                   .speed(10)
-                                   .range(0..=self.screen_width_max), );
+                        ui.add(
+                            egui::DragValue::new(&mut self.area.origin.x)
+                                .speed(10)
+                                .range(0..=self.screen_width_max),
+                        );
                     });
                     ui.horizontal(|ui| {
                         ui.label("y");
                         ui.add_space(28.0);
-                        ui.add(egui::DragValue::new(&mut self.area.origin.y)
-                                   .speed(10)
-                                   .range(0..=self.screen_height_max), );
+                        ui.add(
+                            egui::DragValue::new(&mut self.area.origin.y)
+                                .speed(10)
+                                .range(0..=self.screen_height_max),
+                        );
                     });
                     ui.end_row();
                     ui.label("Dimensions:");
                     ui.horizontal(|ui| {
                         ui.label("width");
-                        ui.add(egui::DragValue::new(&mut self.area.size.width)
-                                   .speed(10)
-                                   .range(0..=self.screen_width_max), );
+                        ui.add_enabled(
+                            !self.modify_by_drag,
+                            egui::DragValue::new(&mut self.area.size.width)
+                                .speed(10)
+                                .range(0..=self.screen_width_max),
+                        );
                     });
                     ui.horizontal(|ui| {
                         ui.label("height");
-                        ui.add(egui::DragValue::new(&mut self.area.size.height)
-                                   .speed(10)
-                                   .range(0..=self.screen_height_max), );
+                        ui.add_enabled(
+                            !self.modify_by_drag,
+                            egui::DragValue::new(&mut self.area.size.height)
+                                .speed(10)
+                                .range(0..=self.screen_height_max),
+                        );
+                        if ui.button("modify by drag").clicked() {
+                            self.modify_by_drag = !self.modify_by_drag;
+                        }
                     });
+
+                    let device_state = DeviceState::new();
+                    let mouse = device_state.get_mouse();
+                    ui.label(format!(
+                        "{}, {}",
+                        device_state.get_mouse().coords.0,
+                        device_state.get_mouse().coords.1
+                    ));
+
+                    if self.modify_by_drag {
+                        if *mouse.button_pressed.get(1).expect("button not found") {
+                            if !self.drag_state.is_dragging {
+                                self.drag_state.start = Some((mouse.coords.0, mouse.coords.1));
+                                self.drag_state.is_dragging = true;
+                            }
+                        }
+                        // se finito drag
+                        else if self.drag_state.is_dragging {
+                            self.drag_state.end = Some((mouse.coords.0, mouse.coords.1));
+                            self.drag_state.is_dragging = false;
+                            if let (Some(coords_start), Some(coords_end)) =
+                                (self.drag_state.start, self.drag_state.end)
+                            {
+                                self.area.origin.x =
+                                    std::cmp::min(coords_start.0, coords_end.0) as f64;
+                                self.area.origin.y =
+                                    std::cmp::min(coords_start.1, coords_end.1) as f64;
+                                self.area.size.width = (coords_end.0 - coords_start.0).abs() as f64;
+                                self.area.size.height =
+                                    (coords_end.1 - coords_start.1).abs() as f64;
+                            }
+                            self.modify_by_drag = false;
+                        }
+                        ui.label(format!(
+                            "start drag: {:?}, end drag: {:?}, dragging: {}",
+                            self.drag_state.start, self.drag_state.end, self.drag_state.is_dragging,
+                        ));
+                    }
                 });
         });
     }
@@ -249,7 +322,9 @@ impl EframeApp {
             _ => self.state = State::Hotkey,
         }
     }
-    fn go_annotation(&mut self) { self.state = State::Annotation }
+    fn go_annotation(&mut self) {
+        self.state = State::Annotation
+    }
     fn go_send(&mut self) {
         match self.state {
             State::Sending | State::Receiving | State::Annotation => {
@@ -302,26 +377,42 @@ impl EframeApp {
     fn stop_receiving_or_sending(&mut self) {
         if let Some(s) = self.msg_s.as_mut() {
             match s.send(Message::stop_request()) {
-                Ok(_) => { self.msg_s.take(); }
-                Err(e) => { println!("Impossible sending stop request: {e}"); }
+                Ok(_) => {
+                    self.msg_s.take();
+                }
+                Err(e) => {
+                    println!("Impossible sending stop request: {e}");
+                }
             }
         }
     }
 }
 impl eframe::App for EframeApp {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-
         // hotkey support
+        ctx.request_repaint();
         for (action, shortcut) in self.hotkeys.clone().iter() {
             if !shortcut.is_empty() {
                 if let Some(key) = Key::from_name(&shortcut) {
                     if ctx.input(|i| i.key_pressed(key)) {
-                        if action.contains(SECT_HOME) { self.go_home(); }
-                        if action.contains(SECT_SEND) { self.go_send(); }
-                        if action.contains(SECT_RECEIVE) { self.go_receive(); }
-                        if action.contains(SECT_ANNOTATION) { self.go_annotation(); }
-                        if action.contains(SECT_HOTKEY) { self.go_hotkey(); }
-                        if action.contains(SECT_QUIT) { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
+                        if action.contains(SECT_HOME) {
+                            self.go_home();
+                        }
+                        if action.contains(SECT_SEND) {
+                            self.go_send();
+                        }
+                        if action.contains(SECT_RECEIVE) {
+                            self.go_receive();
+                        }
+                        if action.contains(SECT_ANNOTATION) {
+                            self.go_annotation();
+                        }
+                        if action.contains(SECT_HOTKEY) {
+                            self.go_hotkey();
+                        }
+                        if action.contains(SECT_QUIT) {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
                     }
                 }
             }
@@ -360,7 +451,8 @@ impl eframe::App for EframeApp {
             })
         });
 
-        if let State::Annotation = self.state { // Annotation tool does not work with CentralPanel
+        if let State::Annotation = self.state {
+            // Annotation tool does not work with CentralPanel
             self.annotation_tool(ctx);
         } else {
             //central panel
@@ -406,7 +498,8 @@ impl eframe::App for EframeApp {
                         if self.sel_opt_modify {
                             if ui.button("Apply").clicked() {
                                 if let Some(s) = self.msg_s.as_mut() {
-                                    if let Ok(_) = s.send(Message::area_request(self.area.clone())) {
+                                    if let Ok(_) = s.send(Message::area_request(self.area.clone()))
+                                    {
                                         self.sel_opt_modify = false;
                                     } else {
                                         println!("impossible sending area request")
@@ -426,7 +519,8 @@ impl eframe::App for EframeApp {
                     State::Receiving => {
                         ui.heading("Receiving!");
                         ui.add_space(10.0);
-                        let checkbox = ui.checkbox(&mut self.save_option, "Save streaming")
+                        let checkbox = ui
+                            .checkbox(&mut self.save_option, "Save streaming")
                             .on_hover_text("If checked, the stream will be saved.");
                         if checkbox.clicked() {
                             if let Some(s) = self.msg_s.as_mut() {
@@ -465,16 +559,20 @@ impl eframe::App for EframeApp {
 
                         //show currently frame
                         if let Some(texture) = &mut self.texture_handle {
-                            ui.add(egui::Image::from_texture(SizedTexture::from_handle(texture))
-                                       .max_height(600.0)
-                                       .max_width(800.0)
-                                       .rounding(10.0), );
+                            ui.add(
+                                egui::Image::from_texture(SizedTexture::from_handle(texture))
+                                    .max_height(600.0)
+                                    .max_width(800.0)
+                                    .rounding(10.0),
+                            );
                         }
                     }
                     State::Hotkey => {
                         self.hotkey_support(ui);
                     }
-                    State::Annotation => { panic!("Annotation tool does not work with CentralPanel"); }
+                    State::Annotation => {
+                        panic!("Annotation tool does not work with CentralPanel");
+                    }
                 }
             });
         }
@@ -487,10 +585,7 @@ impl eframe::App for EframeApp {
         });
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        let backup = Backup::new(
-            self.ip_addr.clone(),
-            self.hotkeys.clone(),
-        );
+        let backup = Backup::new(self.ip_addr.clone(), self.hotkeys.clone());
 
         eframe::set_value(storage, eframe::APP_KEY, &backup);
     }
