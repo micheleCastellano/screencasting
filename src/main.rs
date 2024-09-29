@@ -9,6 +9,7 @@ use gui::EframeApp;
 
 fn main() {
     let viewport = ViewportBuilder {
+        transparent:Some(true),
         // maximized: Some(true),
         ..Default::default()
     };
