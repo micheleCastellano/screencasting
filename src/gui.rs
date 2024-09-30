@@ -1,6 +1,6 @@
 use crate::util::{ChannelFrame, Message};
 use crate::{receiver, sender};
-use device_query::{DeviceQuery, DeviceState, MouseState};
+use device_query::{DeviceQuery, DeviceState};
 use eframe::egui::load::SizedTexture;
 use eframe::egui::{
     Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke,
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
-use std::thread;
+use std::{mem, thread};
 use std::thread::JoinHandle;
 use std::time::SystemTime;
 
@@ -24,7 +24,7 @@ const SECT_HOTKEY: &str = "Hotkey";
 const SECT_ANNOTATION: &str = "Annotation";
 const SECT_QUIT: &str = "Quit";
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 enum State {
     #[default]
     Home,
@@ -48,13 +48,13 @@ impl Backup {
 #[derive(Default)]
 pub struct EframeApp {
     state: State,
+    prev_state: State,
     ip_addr: String,
 
     // hotkeys support:
     // if you want to add a new one, you have to modify "new", "update" and
     // "hotkey support" functions. You may also need to disable backup functionality for the first
-    // launch only.
-    // Sorry for the inconvenience.
+    // launch only. Sorry for the inconvenience.
     hotkeys: HashMap<String, String>,
 
     // selection options support
@@ -128,7 +128,6 @@ impl EframeApp {
 
         app
     }
-
     fn selection_options(&mut self, ui: &mut Ui) {
         ui.group(|ui| {
             if !self.sel_opt_modify {
@@ -146,19 +145,19 @@ impl EframeApp {
                     ui.horizontal(|ui| {
                         ui.label("x");
                         ui.add_space(27.0);
-                        ui.add(
-                            egui::DragValue::new(&mut self.area.origin.x)
-                                .speed(10)
-                                .range(0..=self.screen_width_max),
+                        ui.add_enabled(!self.modify_by_drag,
+                                       egui::DragValue::new(&mut self.area.origin.x)
+                                           .speed(10)
+                                           .range(0..=self.screen_width_max),
                         );
                     });
                     ui.horizontal(|ui| {
                         ui.label("y");
                         ui.add_space(28.0);
-                        ui.add(
-                            egui::DragValue::new(&mut self.area.origin.y)
-                                .speed(10)
-                                .range(0..=self.screen_height_max),
+                        ui.add_enabled(!self.modify_by_drag,
+                                       egui::DragValue::new(&mut self.area.origin.y)
+                                           .speed(10)
+                                           .range(0..=self.screen_height_max),
                         );
                     });
                     ui.end_row();
@@ -180,50 +179,45 @@ impl EframeApp {
                                 .speed(10)
                                 .range(0..=self.screen_height_max),
                         );
-                        if ui.button("modify by drag").clicked() {
-                            self.modify_by_drag = !self.modify_by_drag;
-                        }
                     });
-
-                    let device_state = DeviceState::new();
-                    let mouse = device_state.get_mouse();
-                    ui.label(format!(
-                        "{}, {}",
-                        device_state.get_mouse().coords.0,
-                        device_state.get_mouse().coords.1
-                    ));
-
-                    if self.modify_by_drag {
-                        if *mouse.button_pressed.get(1).expect("button not found") {
-                            if !self.drag_state.is_dragging {
-                                self.drag_state.start = Some((mouse.coords.0, mouse.coords.1));
-                                self.drag_state.is_dragging = true;
-                            }
-                        }
-                        // se finito drag
-                        else if self.drag_state.is_dragging {
-                            self.drag_state.end = Some((mouse.coords.0, mouse.coords.1));
-                            self.drag_state.is_dragging = false;
-                            if let (Some(coords_start), Some(coords_end)) =
-                                (self.drag_state.start, self.drag_state.end)
-                            {
-                                self.area.origin.x =
-                                    std::cmp::min(coords_start.0, coords_end.0) as f64;
-                                self.area.origin.y =
-                                    std::cmp::min(coords_start.1, coords_end.1) as f64;
-                                self.area.size.width = (coords_end.0 - coords_start.0).abs() as f64;
-                                self.area.size.height =
-                                    (coords_end.1 - coords_start.1).abs() as f64;
-                            }
-                            self.modify_by_drag = false;
-                        }
-                        ui.label(format!(
-                            "start drag: {:?}, end drag: {:?}, dragging: {}",
-                            self.drag_state.start, self.drag_state.end, self.drag_state.is_dragging,
-                        ));
+                    ui.end_row();
+                    if ui.button("modify by drag").clicked() {
+                        self.modify_by_drag = !self.modify_by_drag;
                     }
                 });
         });
+
+        self.update_drag_state();
+    }
+    fn update_drag_state(&mut self) {
+        let device_state = DeviceState::new();
+        let mouse = device_state.get_mouse();
+
+        if self.modify_by_drag {
+            if *mouse.button_pressed.get(1).expect("button not found") {
+                if !self.drag_state.is_dragging {
+                    self.drag_state.start = Some((mouse.coords.0, mouse.coords.1));
+                    self.drag_state.is_dragging = true;
+                }
+            }
+            // se finito drag
+            else if self.drag_state.is_dragging {
+                self.drag_state.end = Some((mouse.coords.0, mouse.coords.1));
+                self.drag_state.is_dragging = false;
+                if let (Some(coords_start), Some(coords_end)) =
+                    (self.drag_state.start, self.drag_state.end)
+                {
+                    self.area.origin.x =
+                        std::cmp::min(coords_start.0, coords_end.0) as f64;
+                    self.area.origin.y =
+                        std::cmp::min(coords_start.1, coords_end.1) as f64;
+                    self.area.size.width = (coords_end.0 - coords_start.0).abs() as f64;
+                    self.area.size.height =
+                        (coords_end.1 - coords_start.1).abs() as f64;
+                }
+                self.modify_by_drag = false;
+            }
+        }
     }
     fn hotkey_support(&mut self, ui: &mut Ui) {
         ui.group(|ui| {
@@ -306,39 +300,36 @@ impl EframeApp {
             });
         painter.extend(shapes);
     }
+    fn go_back(&mut self){
+        let state = mem::replace(&mut self.state, self.prev_state.clone());
+        self.prev_state = state;
+    }
     fn go_home(&mut self) {
-        match self.state {
-            State::Sending | State::Receiving | State::Annotation => {
-                self.go_home_if_streaming_is_finished();
-            }
-            _ => self.state = State::Home,
+        if self.check_if_streaming_is_finished() {
+            self.prev_state = self.state.clone();
+            self.state = State::Home;
         }
     }
     fn go_hotkey(&mut self) {
-        match self.state {
-            State::Sending | State::Receiving | State::Annotation => {
-                self.go_home_if_streaming_is_finished();
-            }
-            _ => self.state = State::Hotkey,
+        if self.check_if_streaming_is_finished() {
+            self.prev_state = self.state.clone();
+            self.state = State::Hotkey;
         }
     }
     fn go_annotation(&mut self) {
+        self.prev_state = self.state.clone();
         self.state = State::Annotation
     }
     fn go_send(&mut self) {
-        match self.state {
-            State::Sending | State::Receiving | State::Annotation => {
-                self.go_home_if_streaming_is_finished();
-            }
-            _ => self.state = State::Sender,
+        if self.check_if_streaming_is_finished() {
+            self.prev_state = self.state.clone();
+            self.state = State::Sender;
         }
     }
     fn go_receive(&mut self) {
-        match self.state {
-            State::Sending | State::Receiving | State::Annotation => {
-                self.go_home_if_streaming_is_finished();
-            }
-            _ => self.state = State::Receiver,
+        if self.check_if_streaming_is_finished() {
+            self.prev_state = self.state.clone();
+            self.state = State::Receiver;
         }
     }
     fn start_sending(&mut self) {
@@ -366,13 +357,15 @@ impl EframeApp {
         self.join_handle = Some(handle);
         self.state = State::Receiving;
     }
-    fn go_home_if_streaming_is_finished(&mut self) {
+    fn check_if_streaming_is_finished(&mut self) -> bool {
         if let Some(handle) = self.join_handle.as_mut() {
             if handle.is_finished() {
                 self.join_handle.take();
-                self.state = State::Home;
+            } else {
+                return false;
             }
         }
+        return true;
     }
     fn stop_receiving_or_sending(&mut self) {
         if let Some(s) = self.msg_s.as_mut() {
@@ -390,7 +383,6 @@ impl EframeApp {
 impl eframe::App for EframeApp {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         // hotkey support
-        ctx.request_repaint();
         for (action, shortcut) in self.hotkeys.clone().iter() {
             if !shortcut.is_empty() {
                 if let Some(key) = Key::from_name(&shortcut) {
@@ -423,18 +415,10 @@ impl eframe::App for EframeApp {
             egui::menu::bar(ui, |ui| {
                 //menu
                 ui.menu_button("Menu", |ui| {
-                    if ui.button(SECT_HOME).clicked() {
-                        self.go_home();
-                    }
-                    if ui.button(SECT_HOTKEY).clicked() {
-                        self.go_hotkey();
-                    }
-                    if ui.button(SECT_ANNOTATION).clicked() {
-                        self.go_annotation();
-                    }
-                    if ui.button(SECT_QUIT).clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    }
+                    if ui.button(SECT_HOME).clicked() { self.go_home(); }
+                    if ui.button(SECT_HOTKEY).clicked() { self.go_hotkey(); }
+                    if ui.button(SECT_ANNOTATION).clicked() { self.go_annotation(); }
+                    if ui.button(SECT_QUIT).clicked() { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
                 });
                 ui.add_space(10.0);
                 egui::widgets::global_theme_preference_switch(ui);
@@ -447,9 +431,13 @@ impl eframe::App for EframeApp {
                     if ui.button("Clear Painting").clicked() {
                         self.lines.clear();
                     }
+                    if ui.button("Back").clicked(){
+                        self.go_back();
+                    }
                 }
             })
         });
+
 
         if let State::Annotation = self.state {
             // Annotation tool does not work with CentralPanel
@@ -514,7 +502,9 @@ impl eframe::App for EframeApp {
                         if ui.button("Stop").clicked() {
                             self.stop_receiving_or_sending();
                         }
-                        self.go_home_if_streaming_is_finished();
+                        if self.check_if_streaming_is_finished(){
+                            self.go_home();
+                        }
                     }
                     State::Receiving => {
                         ui.heading("Receiving!");
