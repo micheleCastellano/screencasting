@@ -2,10 +2,7 @@ use crate::util::{ChannelFrame, Message};
 use crate::{receiver, sender};
 use device_query::{DeviceQuery, DeviceState};
 use eframe::egui::load::SizedTexture;
-use eframe::egui::{
-    Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke,
-    TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
-};
+use eframe::egui::{Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2};
 use eframe::{egui, emath, Frame};
 use scap::capturer::{Area, Point, Size};
 use serde::{Deserialize, Serialize};
@@ -50,6 +47,7 @@ pub struct EframeApp {
     state: State,
     prev_state: State,
     ip_addr: String,
+    alert: bool,
 
     // hotkeys support:
     // if you want to add a new one, you have to modify "new", "update" and
@@ -300,7 +298,10 @@ impl EframeApp {
             });
         painter.extend(shapes);
     }
-    fn go_back(&mut self){
+    fn show_alert(&mut self) {
+        self.alert = true;
+    }
+    fn go_back(&mut self) {
         let state = mem::replace(&mut self.state, self.prev_state.clone());
         self.prev_state = state;
     }
@@ -308,13 +309,13 @@ impl EframeApp {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Home;
-        }
+        } else { self.show_alert(); }
     }
     fn go_hotkey(&mut self) {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Hotkey;
-        }
+        } else { self.show_alert(); }
     }
     fn go_annotation(&mut self) {
         self.prev_state = self.state.clone();
@@ -324,13 +325,13 @@ impl EframeApp {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Sender;
-        }
+        } else { self.show_alert(); }
     }
     fn go_receive(&mut self) {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Receiver;
-        }
+        } else { self.show_alert(); }
     }
     fn start_sending(&mut self) {
         let ip_addr = self.ip_addr.clone();
@@ -410,6 +411,19 @@ impl eframe::App for EframeApp {
             }
         }
 
+        egui::Window::new("Attention")
+            .open(&mut self.alert)
+            .collapsible(false)
+            .default_height(50.0)
+            .default_width(150.0)
+            .default_pos(Pos2::new(
+                self.screen_width_max as f32 / 2.0,
+                self.screen_height_max as f32 / 2.0,
+            ))
+            .show(ctx, |ui| {
+                ui.label("Please, stop the streaming before change section.");
+            });
+
         //top panel
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -431,13 +445,12 @@ impl eframe::App for EframeApp {
                     if ui.button("Clear Painting").clicked() {
                         self.lines.clear();
                     }
-                    if ui.button("Back").clicked(){
+                    if ui.button("Back").clicked() {
                         self.go_back();
                     }
                 }
             })
         });
-
 
         if let State::Annotation = self.state {
             // Annotation tool does not work with CentralPanel
@@ -502,7 +515,7 @@ impl eframe::App for EframeApp {
                         if ui.button("Stop").clicked() {
                             self.stop_receiving_or_sending();
                         }
-                        if self.check_if_streaming_is_finished(){
+                        if self.check_if_streaming_is_finished() {
                             self.go_home();
                         }
                     }
