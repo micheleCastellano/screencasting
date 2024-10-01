@@ -16,7 +16,12 @@ tokio = { version = "*", features = ["full"] }  # Per gestione asincrono
 image = "0.24.9" # do not change otherwise code does not work
 bincode = "*"
 serde = { version = "1.0.210", features = ["derive"] }
-scap = "*"
+#scap = "0.0.5"
+scap = { git = "https://github.com/CapSoftware/scap" }
 local-ip-address = "*"
 rdev = "*"
 device_query = "2.1.0"
+libspa = "0.8.0"
+
+[patch.crates-io]
+libspa-sys = { git = 'https://gitlab.freedesktop.org/pipewire/pipewire-rs' }

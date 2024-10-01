@@ -1,12 +1,12 @@
-use std::vec::Vec;
-use std::time::{SystemTime};
-use std::net::TcpStream;
-use std::io::Write;
-use std::sync::mpsc::Receiver;
+use crate::sender::ScapError::{ScapNotSupported, ScapPermissionDenied};
+use crate::util::{Header, Message, MessageType, CHUNK_SIZE};
 use scap::capturer::{Area, Capturer, Options};
 use scap::frame::Frame;
-use crate::sender::ScapError::{ScapNotSupported, ScapPermissionDenied};
-use crate::util::{Header, CHUNK_SIZE, Message, MessageType};
+use std::io::Write;
+use std::net::TcpStream;
+use std::sync::mpsc::Receiver;
+use std::time::SystemTime;
+use std::vec::Vec;
 
 #[derive(Debug)]
 enum ScapError {
@@ -37,16 +37,18 @@ fn scap_init() -> Result<(), ScapError> {
 }
 
 fn create_capturer(area: Area) -> Capturer {
-    let targets = scap::get_targets();
+    let targets = scap::get_all_targets();
+    println!("{:?}", targets);
+    //let targets = scap::get_targets();
     let options = Options {
         fps: 30,
         show_cursor: true,
         show_highlight: false,
-        targets,
+        target: Some(targets.get(0).unwrap().clone()),
         // excluded_targets: None,
         output_type: scap::frame::FrameType::BGRAFrame,
         output_resolution: scap::capturer::Resolution::_720p,
-        source_rect: Some(area),
+        crop_area: Some(area),
         ..Default::default()
     };
     Capturer::new(options)
@@ -63,7 +65,9 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
     //initialization
     let mut stream;
     match TcpStream::connect(format!("{}:8080", ip_addr)) {
-        Ok(s) => { stream = s; }
+        Ok(s) => {
+            stream = s;
+        }
         Err(e) => {
             println!("Impossible connecting to {ip_addr}: {e}");
             return;
@@ -98,17 +102,27 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
         capturer.stop_capture();
 
         if let Frame::BGRA(mut frame) = next_frame {
-
             // Send header
-            let header = Header::new(frame_number, frame.data.len() as u32, frame.width as u32, frame.height as u32);
+            let header = Header::new(
+                frame_number,
+                frame.data.len() as u32,
+                frame.width as u32,
+                frame.height as u32,
+            );
             let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
 
             if let Err(e) = stream.write(&encoded_header) {
                 println!("Connection closed: {}", e);
                 break 'streaming;
             }
-            println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
-
+            println!(
+                "Header sent {} {}",
+                header.frame_number,
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+            );
 
             // Send frame
             frame.data = from_bgra_to_rgba(frame.data);
@@ -122,7 +136,14 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
                 println!("Server closed: {}", e);
                 break 'streaming;
             }
-            println!("Frame sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+            println!(
+                "Frame sent {} {}",
+                header.frame_number,
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+            );
         } else {
             println!("Sender side: the captured frame format is not supported.");
             break 'streaming;
