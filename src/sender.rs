@@ -5,7 +5,8 @@ use scap::frame::Frame;
 use std::io::Write;
 use std::net::TcpStream;
 use std::sync::mpsc::Receiver;
-use std::time::SystemTime;
+use std::thread;
+use std::time::{Duration, SystemTime};
 use std::vec::Vec;
 
 #[derive(Debug)]
@@ -114,20 +115,31 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
         frame_number = frame_number + 1;
 
         capturer.start_capture();
+        //let next_frame = capturer.get_next_frame().unwrap();
         let next_frame = capturer.get_next_frame().unwrap();
-        capturer.stop_capture();
+        /*
+                let next_frame = match capturer.get_next_frame() {
+                    Ok(next_frame) => next_frame,
+                    Err(e) => {
+                        thread::sleep(Duration::from_millis(1000));
+                        println!("{e}");
+                        continue 'streaming;
+                    }
+                };
+        */
+        //capturer.stop_capture();
 
-        match next_frame {
-            Frame::YUVFrame(_) => {
-                println!("yuv");
-            }
-            Frame::RGB(_) => println!("rgb"),
-            Frame::RGBx(_) => println!("rgbx"),
-            Frame::BGRA(_) => println!("bgra"),
-            Frame::XBGR(_) => println!("xbgr"),
-            Frame::BGRx(_) => println!("bgrx"),
-            Frame::BGR0(_) => println!("bgr0"),
-        }
+        /*
+                match next_frame {
+                    Frame::YUVFrame(_) => println!("yuv"),
+                    Frame::RGB(_) => println!("rgb"),
+                    Frame::RGBx(_) => println!("rgbx"),
+                    Frame::BGRA(_) => println!("bgra"),
+                    Frame::XBGR(_) => println!("xbgr"),
+                    Frame::BGRx(_) => println!("bgrx"),
+                    Frame::BGR0(_) => println!("bgr0"),
+                }
+        */
 
         match next_frame {
             Frame::BGRA(mut frame) => {
