@@ -475,6 +475,8 @@ impl eframe::App for EframeApp {
                         });
                     }
                     State::Sender => {
+                        self.sel_opt_modify = true;
+
                         ui.heading("Sender!");
                         ui.add_space(10.0);
                         self.selection_options(ui);
@@ -541,9 +543,8 @@ impl eframe::App for EframeApp {
                             if let Ok(channel_frame) = r.try_recv() {
                                 if let Some(texture) = &mut self.texture_handle {
                                     texture.set(
-                                        // ColorImage::from_rgba_unmultiplied([channel_frame.w, channel_frame.h], &channel_frame.data),
-                                        // ColorImage::from_rgb([channel_frame.w, channel_frame.h], &channel_frame.data),
-                                        ColorImage::from_rgba_premultiplied(
+                                        // ColorImage::from_rgb(
+                                            ColorImage::from_rgba_unmultiplied(
                                             [channel_frame.w as usize, channel_frame.h as usize],
                                             &channel_frame.data,
                                         ),

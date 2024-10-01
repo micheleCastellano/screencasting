@@ -95,12 +95,12 @@ pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Conte
         // Save frame
         let frame_number = header.frame_number;
         match RgbaImage::from_raw(header.frame_width, header.frame_height, frame.clone()) {
-            None => { println!("error occurs converting frame {frame_number} in RgbaImage"); }
-            Some(rgba) => {
+            None => { println!("error occurs converting frame {frame_number} in RgbImage"); }
+            Some(rgb) => {
                 tokio_rt.spawn(async move {
                     match fs::create_dir_all(PATH) {
                         Ok(_) => {
-                            if let Err(e) = rgba.save(format!("{PATH}/{frame_number}_img.jpeg")) {
+                            if let Err(e) = rgb.save(format!("{PATH}/{frame_number}_img.jpeg")) {
                                 println!("Error occurs saving image {frame_number}: {e}");
                             }
                         }
