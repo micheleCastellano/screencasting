@@ -543,8 +543,7 @@ impl eframe::App for EframeApp {
                             if let Ok(channel_frame) = r.try_recv() {
                                 if let Some(texture) = &mut self.texture_handle {
                                     texture.set(
-                                        // ColorImage::from_rgb(
-                                            ColorImage::from_rgba_unmultiplied(
+                                        ColorImage::from_rgb(
                                             [channel_frame.w as usize, channel_frame.h as usize],
                                             &channel_frame.data,
                                         ),

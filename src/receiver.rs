@@ -4,7 +4,6 @@ use std::net::{TcpListener};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::SystemTime;
 use eframe::egui::Context;
-use image::RgbaImage;
 use std::process::Command;
 use tokio::runtime::Runtime;
 use crate::util::{Header, ChannelFrame, CHUNK_SIZE, Message, MessageType};
@@ -69,8 +68,9 @@ pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Conte
             break 'streaming;
         }
         let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
-        println!("Header Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        println!("header {:?}", header);
 
+        // println!("Header Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
         // Read frame
         let mut frame = Vec::with_capacity(header.len as usize);
         while header.len > 0 {
@@ -90,11 +90,12 @@ pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Conte
                 frame.push(frame_buffer[i as usize]);
             }
         }
-        println!("Frame Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        println!("data len {:?}", frame.len());
+
 
         // Save frame
         let frame_number = header.frame_number;
-        match RgbaImage::from_raw(header.frame_width, header.frame_height, frame.clone()) {
+        match image::RgbImage::from_raw(header.frame_width, header.frame_height, frame.clone()) {
             None => { println!("error occurs converting frame {frame_number} in RgbImage"); }
             Some(rgb) => {
                 tokio_rt.spawn(async move {
