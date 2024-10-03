@@ -2,16 +2,19 @@ use crate::util::{ChannelFrame, Message};
 use crate::{receiver, sender};
 use device_query::{DeviceQuery, DeviceState};
 use eframe::egui::load::SizedTexture;
-use eframe::egui::{Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2};
+use eframe::egui::{
+    Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke,
+    TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+};
 use eframe::{egui, emath, Frame};
 use scap::capturer::{Area, Point, Size};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
-use std::{mem, thread};
 use std::thread::JoinHandle;
 use std::time::SystemTime;
+use std::{mem, thread};
 
 // section names
 const SECT_HOME: &str = "Home";
@@ -143,19 +146,21 @@ impl EframeApp {
                     ui.horizontal(|ui| {
                         ui.label("x");
                         ui.add_space(27.0);
-                        ui.add_enabled(!self.modify_by_drag,
-                                       egui::DragValue::new(&mut self.area.origin.x)
-                                           .speed(10)
-                                           .range(0..=self.screen_width_max),
+                        ui.add_enabled(
+                            !self.modify_by_drag,
+                            egui::DragValue::new(&mut self.area.origin.x)
+                                .speed(10)
+                                .range(0..=self.screen_width_max),
                         );
                     });
                     ui.horizontal(|ui| {
                         ui.label("y");
                         ui.add_space(28.0);
-                        ui.add_enabled(!self.modify_by_drag,
-                                       egui::DragValue::new(&mut self.area.origin.y)
-                                           .speed(10)
-                                           .range(0..=self.screen_height_max),
+                        ui.add_enabled(
+                            !self.modify_by_drag,
+                            egui::DragValue::new(&mut self.area.origin.y)
+                                .speed(10)
+                                .range(0..=self.screen_height_max),
                         );
                     });
                     ui.end_row();
@@ -205,13 +210,10 @@ impl EframeApp {
                 if let (Some(coords_start), Some(coords_end)) =
                     (self.drag_state.start, self.drag_state.end)
                 {
-                    self.area.origin.x =
-                        std::cmp::min(coords_start.0, coords_end.0) as f64;
-                    self.area.origin.y =
-                        std::cmp::min(coords_start.1, coords_end.1) as f64;
+                    self.area.origin.x = std::cmp::min(coords_start.0, coords_end.0) as f64;
+                    self.area.origin.y = std::cmp::min(coords_start.1, coords_end.1) as f64;
                     self.area.size.width = (coords_end.0 - coords_start.0).abs() as f64;
-                    self.area.size.height =
-                        (coords_end.1 - coords_start.1).abs() as f64;
+                    self.area.size.height = (coords_end.1 - coords_start.1).abs() as f64;
                 }
                 self.modify_by_drag = false;
             }
@@ -309,13 +311,17 @@ impl EframeApp {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Home;
-        } else { self.show_alert(); }
+        } else {
+            self.show_alert();
+        }
     }
     fn go_hotkey(&mut self) {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Hotkey;
-        } else { self.show_alert(); }
+        } else {
+            self.show_alert();
+        }
     }
     fn go_annotation(&mut self) {
         self.prev_state = self.state.clone();
@@ -325,13 +331,17 @@ impl EframeApp {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Sender;
-        } else { self.show_alert(); }
+        } else {
+            self.show_alert();
+        }
     }
     fn go_receive(&mut self) {
         if self.check_if_streaming_is_finished() {
             self.prev_state = self.state.clone();
             self.state = State::Receiver;
-        } else { self.show_alert(); }
+        } else {
+            self.show_alert();
+        }
     }
     fn start_sending(&mut self) {
         let ip_addr = self.ip_addr.clone();
@@ -429,10 +439,18 @@ impl eframe::App for EframeApp {
             egui::menu::bar(ui, |ui| {
                 //menu
                 ui.menu_button("Menu", |ui| {
-                    if ui.button(SECT_HOME).clicked() { self.go_home(); }
-                    if ui.button(SECT_HOTKEY).clicked() { self.go_hotkey(); }
-                    if ui.button(SECT_ANNOTATION).clicked() { self.go_annotation(); }
-                    if ui.button(SECT_QUIT).clicked() { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
+                    if ui.button(SECT_HOME).clicked() {
+                        self.go_home();
+                    }
+                    if ui.button(SECT_HOTKEY).clicked() {
+                        self.go_hotkey();
+                    }
+                    if ui.button(SECT_ANNOTATION).clicked() {
+                        self.go_annotation();
+                    }
+                    if ui.button(SECT_QUIT).clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
                 });
                 ui.add_space(10.0);
                 egui::widgets::global_theme_preference_switch(ui);
@@ -586,6 +604,8 @@ impl eframe::App for EframeApp {
                 ui.label("Screen casting app developed with rust");
             });
         });
+
+        ctx.request_repaint();
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         let backup = Backup::new(self.ip_addr.clone(), self.hotkeys.clone());
