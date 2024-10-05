@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
-use std::time::{Instant, SystemTime};
+use std::time::{ SystemTime};
 use std::{mem, thread};
 use crate::capturer::{Area, Frame};
 
@@ -531,7 +531,6 @@ impl eframe::App for EframeApp {
                         }
                     }
                     State::Receiving => {
-                        let start_tot = Instant::now();
 
                         ui.heading("Receiving!");
                         ui.add_space(10.0);
@@ -573,8 +572,6 @@ impl eframe::App for EframeApp {
                             }
                         }
 
-                        let start = Instant::now();
-
                         //show currently frame
                         if let Some(texture) = &mut self.texture_handle {
                             ui.add(
@@ -584,9 +581,6 @@ impl eframe::App for EframeApp {
                                     .rounding(10.0),
                             );
                         }
-                        println!("receiving block {}", start.elapsed().as_millis());
-
-                        println!("tot block {}", start_tot.elapsed().as_millis());
                     }
                     State::Hotkey => {
                         self.hotkey_support(ui);

@@ -70,7 +70,7 @@ pub fn start(frame_s: Sender<Frame>, msg_r: Receiver<Message>, ctx: Context, mut
             break 'streaming;
         }
         let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
-        // println!("Header received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        println!("Header received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         // Read data
         let mut data = Vec::with_capacity(header.len as usize);
@@ -91,9 +91,7 @@ pub fn start(frame_s: Sender<Frame>, msg_r: Receiver<Message>, ctx: Context, mut
                 data.push(frame_buffer[i as usize]);
             }
         }
-        // println!("Frame received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
-
-
+        println!("Frame received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         // Save frame
         let frame_number = header.frame_number;
