@@ -1,7 +1,7 @@
 use std::time::Duration;
 use scrap::{Capturer, Display};
 
-pub const FPS_SLEEP: Duration = Duration::from_millis(1000 / 9);
+pub const FPS_SLEEP: Duration = Duration::from_millis(1000 / 30);
 #[derive(Debug, Default)]
 pub struct Frame {
     pub w: u32,
