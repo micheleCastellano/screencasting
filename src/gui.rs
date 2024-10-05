@@ -1,4 +1,5 @@
-use crate::util::{Message};
+use crate::capturer::{Area, Frame};
+use crate::util::Message;
 use crate::{receiver, sender};
 use device_query::{DeviceQuery, DeviceState};
 use eframe::egui::load::SizedTexture;
@@ -12,9 +13,8 @@ use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
-use std::time::{ SystemTime};
+use std::time::SystemTime;
 use std::{mem, thread};
-use crate::capturer::{Area, Frame};
 
 // section names
 const SECT_HOME: &str = "Home";
@@ -120,7 +120,7 @@ impl EframeApp {
 
         app
     }
-    fn selection_options(&mut self, ui: &mut Ui) {
+    fn selection_options(&mut self, ui: &mut Ui, ctx: &Context) {
         ui.group(|ui| {
             if !self.sel_opt_modify {
                 ui.disable();
@@ -179,6 +179,7 @@ impl EframeApp {
                         self.modify_by_drag = !self.modify_by_drag;
                     }
                 });
+            ctx.request_repaint();
         });
 
         self.update_drag_state();
@@ -488,7 +489,7 @@ impl eframe::App for EframeApp {
 
                         ui.heading("Sender!");
                         ui.add_space(10.0);
-                        self.selection_options(ui);
+                        self.selection_options(ui, ctx);
                         ui.add_space(10.0);
                         if ui.button("Start").clicked() {
                             self.start_sending();
@@ -506,7 +507,7 @@ impl eframe::App for EframeApp {
                     }
                     State::Sending => {
                         ui.heading("Sending!");
-                        self.selection_options(ui);
+                        self.selection_options(ui, ctx);
                         if self.sel_opt_modify {
                             if ui.button("Apply").clicked() {
                                 if let Some(s) = self.msg_s.as_mut() {
@@ -531,7 +532,6 @@ impl eframe::App for EframeApp {
                         }
                     }
                     State::Receiving => {
-
                         ui.heading("Receiving!");
                         ui.add_space(10.0);
                         let checkbox = ui
@@ -598,7 +598,6 @@ impl eframe::App for EframeApp {
                 ui.label("Screen casting app developed with rust");
             });
         });
-
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         let backup = Backup::new(self.ip_addr.clone(), self.hotkeys.clone());
