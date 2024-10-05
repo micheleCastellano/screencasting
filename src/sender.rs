@@ -1,65 +1,12 @@
 use std::vec::Vec;
-use std::time::{Duration};
+use std::time::{SystemTime};
 use std::net::TcpStream;
 use std::io::Write;
 use std::sync::mpsc::Receiver;
 use std::thread;
-use scap::capturer::{Area, Capturer, Options};
-use scap::frame::Frame;
-use crate::sender::ScapError::{ScapNotSupported, ScapPermissionDenied};
+use crate::capturer;
+use crate::capturer::{Area, capture, Frame};
 use crate::util::{Header, CHUNK_SIZE, Message, MessageType};
-
-#[derive(Debug)]
-enum ScapError {
-    ScapNotSupported,
-    ScapPermissionDenied,
-}
-fn scap_init() -> Result<(), ScapError> {
-    // Check if the platform is supported
-    let supported = scap::is_supported();
-    if !supported {
-        println!("❌ Platform not supported");
-        return Err(ScapNotSupported);
-    } else {
-        println!("✅ Platform supported");
-    }
-
-    // Check if we have permission to capture screen
-    // If we don't, request it.
-    if !scap::has_permission() {
-        println!("❌ Permission not granted. Requesting permission...");
-        if !scap::request_permission() {
-            println!("❌ Permission denied");
-            return Err(ScapPermissionDenied);
-        }
-    }
-    println!("✅ Permission granted");
-    Ok(())
-}
-fn create_capturer(area: Area) -> Capturer {
-    // let targets = scap::get_all_targets();
-    let options = Options {
-        fps: 15,
-        show_cursor: true,
-        show_highlight: false,
-        // target: Some(targets.get(0).unwrap().clone()),
-        // excluded_targets: None,
-        output_type: scap::frame::FrameType::BGRAFrame,
-        output_resolution: scap::capturer::Resolution::_480p,
-        crop_area: Some(area),
-        ..Default::default()
-    };
-    Capturer::new(options)
-}
-fn from_bgrx_to_rgb(bgrx_data: Vec<u8>) -> Vec<u8> {
-    let mut rgb_data = Vec::with_capacity((bgrx_data.len() / 4) * 3 + CHUNK_SIZE as usize);
-    for chunk in bgrx_data.chunks(4) {
-        rgb_data.push(chunk[2]); // R
-        rgb_data.push(chunk[1]); // G
-        rgb_data.push(chunk[0]); // B
-    }
-    rgb_data
-}
 
 pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
     //initialization
@@ -73,14 +20,13 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
     }
     println!("Connection successed");
     let mut frame_number = 0;
-    scap_init().unwrap();
-    let mut capturer: Capturer = create_capturer(area);
 
-    #[cfg(not(target_os = "windows"))]
-    capturer.start_capture();
+    let mut cpt = capturer::create();
 
     // streaming
     'streaming: loop {
+        thread::sleep(capturer::FPS_SLEEP);
+
         // manage messages from gui
         if let Ok(msg) = msg_r.try_recv() {
             match msg.message_type {
@@ -90,14 +36,6 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
                 }
                 MessageType::Area => {
                     area = msg.area;
-
-                    #[cfg(not(target_os = "windows"))]
-                    capturer.stop_capture();
-
-                    capturer = create_capturer(area);
-
-                    #[cfg(not(target_os = "windows"))]
-                    capturer.start_capture();
                 }
                 _ => {}
             }
@@ -105,68 +43,35 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
 
         frame_number = frame_number + 1;
 
-        #[cfg(target_os = "windows")]{
-            thread::sleep(Duration::from_millis(50));
-            capturer.start_capture();
-        }
-
-        let next_frame = capturer.get_next_frame().unwrap();
-
-        #[cfg(target_os = "windows")]
-        capturer.stop_capture();
-
-        let size = capturer.get_output_frame_size();
-        let width = size[0];
-        let height = size[1];
-        let mut data;
-
-        match next_frame {
-            Frame::BGRA(f) => {
-                data = from_bgrx_to_rgb(f.data);
-            }
-            Frame::BGRx(f) => {
-                data = from_bgrx_to_rgb(f.data);
-            }
-            _ => {
-                println!("Sender side: the captured frame format is not supported.");
-                break 'streaming;
-            }
-        }
-
-        if data.len() == 0 {
-            thread::sleep(Duration::from_millis(30));
-            continue;
-        }
+        let data = capture(&mut cpt);
+        assert_ne!(data.len(), 0);
+        let frame = Frame::new(cpt.width() as u32, cpt.height() as u32, data);
+        let mut frame = capturer::u8x4_crop(frame,&area);
+        frame.data = capturer::from_bgra_to_rgb(frame.data);
 
         // Send header
-        let header = Header::new(frame_number, data.len() as u32, width, height);
+        let header = Header::new(frame_number, frame.data.len() as u32, frame.w, frame.h);
         let encoded_header: Vec<u8> = bincode::serialize(&header).unwrap();
 
         if let Err(e) = stream.write(&encoded_header) {
             println!("Connection closed: {}", e);
             break 'streaming;
         }
-        println!("header {:?}", header);
-        // println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         // Send frame
-        let frame_pad = CHUNK_SIZE - (data.len() as u32 % CHUNK_SIZE);
+        let frame_pad = CHUNK_SIZE - (frame.data.len() as u32 % CHUNK_SIZE);
         println!("frame pad {}", frame_pad);
         if frame_pad < CHUNK_SIZE {
             for _ in 0..frame_pad {
-                data.push(0);
+                frame.data.push(0);
             }
         }
-        if let Err(e) = stream.write_all(&data) {
+        if let Err(e) = stream.write_all(&frame.data) {
             println!("Server closed: {}", e);
             break 'streaming;
         }
-        // println!("Frame sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
-        println!("data len {:?}", data.len());
+        println!("Frame sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
     }
-
-    #[cfg(not(target_os = "windows"))]
-    capturer.stop_capture();
-
     println!("Sender terminated");
 }

@@ -2,6 +2,7 @@ mod gui;
 mod sender;
 mod receiver;
 mod util;
+mod capturer;
 
 use std::default::Default;
 use eframe::egui::ViewportBuilder;

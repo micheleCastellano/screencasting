@@ -6,7 +6,8 @@ use std::time::SystemTime;
 use eframe::egui::Context;
 use std::process::Command;
 use tokio::runtime::Runtime;
-use crate::util::{Header, ChannelFrame, CHUNK_SIZE, Message, MessageType};
+use crate::capturer::Frame;
+use crate::util::{Header, CHUNK_SIZE, Message, MessageType};
 
 const PATH: &str = "./tmp";
 
@@ -36,13 +37,14 @@ fn make_video() {
     println!("FFmpeg status: {:?}", ffmpeg_command);
 }
 
-pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Context, mut save_option: bool) {
+pub fn start(frame_s: Sender<Frame>, msg_r: Receiver<Message>, ctx: Context, mut save_option: bool) {
 
     //initialization
     let tokio_rt = Runtime::new().unwrap();
     let ip_addr = local_ip_address::local_ip().unwrap().to_string();
     let listener = TcpListener::bind(format!("{ip_addr}:8080")).unwrap();
     println!("Server listening to {ip_addr}:8080");
+    fs::create_dir_all(PATH).unwrap(); // useful to record the streaming
     let (mut stream, _) = listener.accept().unwrap();
     let mut header_buffer = [0; std::mem::size_of::<Header>()];
     let mut frame_buffer = [0; CHUNK_SIZE as usize];
@@ -68,11 +70,10 @@ pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Conte
             break 'streaming;
         }
         let mut header: Header = bincode::deserialize(&header_buffer).expect("error deserializing header");
-        println!("header {:?}", header);
+        // println!("Header received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
-        // println!("Header Received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
-        // Read frame
-        let mut frame = Vec::with_capacity(header.len as usize);
+        // Read data
+        let mut data = Vec::with_capacity(header.len as usize);
         while header.len > 0 {
             if let Err(e) = stream.read_exact(&mut frame_buffer) {
                 println!("connection closed: {e}");
@@ -87,36 +88,33 @@ pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Conte
                 header.len = header.len - CHUNK_SIZE;
             }
             for i in 0..end {
-                frame.push(frame_buffer[i as usize]);
+                data.push(frame_buffer[i as usize]);
             }
         }
-        println!("data len {:?}", frame.len());
+        // println!("Frame received {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+
 
 
         // Save frame
         let frame_number = header.frame_number;
-        match image::RgbImage::from_raw(header.frame_width, header.frame_height, frame.clone()) {
+        match image::RgbImage::from_raw(header.frame_width, header.frame_height, data.clone()) {
             None => { println!("error occurs converting frame {frame_number} in RgbImage"); }
             Some(rgb) => {
                 tokio_rt.spawn(async move {
-                    match fs::create_dir_all(PATH) {
-                        Ok(_) => {
-                            if let Err(e) = rgb.save(format!("{PATH}/{frame_number}_img.jpeg")) {
-                                println!("Error occurs saving image {frame_number}: {e}");
-                            }
-                        }
-                        Err(e) => { println!("error creating directory tmp : {e}"); }
+                    if let Err(e) = rgb.save(format!("{PATH}/{frame_number}_img.jpeg")) {
+                        println!("Error occurs saving image {frame_number}: {e}");
                     }
                 });
             }
         }
 
         // Send frame to gui
-        let channel_frame = ChannelFrame::new(header.frame_width, header.frame_height, frame);
-        if let Err(e) = frame_s.send(channel_frame) {
+        let frame = Frame::new(header.frame_width, header.frame_height, data);
+        if let Err(e) = frame_s.send(frame) {
             println!("Impossible sending frame via channel: {:?}", e);
             break 'streaming;
         }
+
         ctx.request_repaint();
     }
 
@@ -124,7 +122,7 @@ pub fn start(frame_s: Sender<ChannelFrame>, msg_r: Receiver<Message>, ctx: Conte
         make_video();
     }
 
-    if let Err(e) = fs::remove_dir_all("./tmp") {
+    if let Err(e) = fs::remove_dir_all(PATH) {
         println!("impossible remove dir tmp: {e}");
     }
     println!("Receiver terminated.");

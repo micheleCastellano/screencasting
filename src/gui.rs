@@ -1,4 +1,4 @@
-use crate::util::{ChannelFrame, Message};
+use crate::util::{Message};
 use crate::{receiver, sender};
 use device_query::{DeviceQuery, DeviceState};
 use eframe::egui::load::SizedTexture;
@@ -6,15 +6,15 @@ use eframe::egui::{
     Color32, ColorImage, Context, Id, ImageData, Key, LayerId, Pos2, Rect, Sense, Stroke,
     TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
 };
-use eframe::{egui, emath, Frame};
-use scap::capturer::{Area, Point, Size};
+use eframe::{egui, emath};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 use std::{mem, thread};
+use crate::capturer::{Area, Frame};
 
 // section names
 const SECT_HOME: &str = "Home";
@@ -72,7 +72,7 @@ pub struct EframeApp {
 
     // utils to manage stream of frames
     texture_handle: Option<TextureHandle>,
-    frame_r: Option<Receiver<ChannelFrame>>, // for receiver mode only!
+    frame_r: Option<Receiver<Frame>>, // for receiver mode only!
     msg_s: Option<Sender<Message>>,
     join_handle: Option<JoinHandle<()>>,
     save_option: bool,
@@ -101,16 +101,7 @@ impl EframeApp {
             screen_width_max: width as u32,
             screen_height_max: height as u32,
             stroke: Stroke::new(1.0, Color32::from_rgb(25, 200, 100)),
-            area: Area {
-                origin: Point { x: 0.0, y: 0.0 },
-                size: Size {
-                    width: width as f64,
-                    height: height as f64,
-                },
-            },
-            sel_opt_modify: true,
-            drag_state: DragState::default(),
-            modify_by_drag: false,
+            area: Area::new(0, 0, width as u32, height as u32),
             ..Default::default()
         };
 
@@ -148,7 +139,7 @@ impl EframeApp {
                         ui.add_space(27.0);
                         ui.add_enabled(
                             !self.modify_by_drag,
-                            egui::DragValue::new(&mut self.area.origin.x)
+                            egui::DragValue::new(&mut self.area.x)
                                 .speed(10)
                                 .range(0..=self.screen_width_max),
                         );
@@ -158,7 +149,7 @@ impl EframeApp {
                         ui.add_space(28.0);
                         ui.add_enabled(
                             !self.modify_by_drag,
-                            egui::DragValue::new(&mut self.area.origin.y)
+                            egui::DragValue::new(&mut self.area.y)
                                 .speed(10)
                                 .range(0..=self.screen_height_max),
                         );
@@ -169,7 +160,7 @@ impl EframeApp {
                         ui.label("width");
                         ui.add_enabled(
                             !self.modify_by_drag,
-                            egui::DragValue::new(&mut self.area.size.width)
+                            egui::DragValue::new(&mut self.area.width)
                                 .speed(10)
                                 .range(0..=self.screen_width_max),
                         );
@@ -178,7 +169,7 @@ impl EframeApp {
                         ui.label("height");
                         ui.add_enabled(
                             !self.modify_by_drag,
-                            egui::DragValue::new(&mut self.area.size.height)
+                            egui::DragValue::new(&mut self.area.height)
                                 .speed(10)
                                 .range(0..=self.screen_height_max),
                         );
@@ -210,10 +201,10 @@ impl EframeApp {
                 if let (Some(coords_start), Some(coords_end)) =
                     (self.drag_state.start, self.drag_state.end)
                 {
-                    self.area.origin.x = std::cmp::min(coords_start.0, coords_end.0) as f64;
-                    self.area.origin.y = std::cmp::min(coords_start.1, coords_end.1) as f64;
-                    self.area.size.width = (coords_end.0 - coords_start.0).abs() as f64;
-                    self.area.size.height = (coords_end.1 - coords_start.1).abs() as f64;
+                    self.area.x = std::cmp::min(coords_start.0, coords_end.0) as u32;
+                    self.area.y = std::cmp::min(coords_start.1, coords_end.1) as u32;
+                    self.area.width = (coords_end.0 - coords_start.0).abs() as u32;
+                    self.area.height = (coords_end.1 - coords_start.1).abs() as u32;
                 }
                 self.modify_by_drag = false;
             }
@@ -392,7 +383,7 @@ impl EframeApp {
     }
 }
 impl eframe::App for EframeApp {
-    fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // hotkey support
         for (action, shortcut) in self.hotkeys.clone().iter() {
             if !shortcut.is_empty() {
@@ -540,6 +531,8 @@ impl eframe::App for EframeApp {
                         }
                     }
                     State::Receiving => {
+                        let start_tot = Instant::now();
+
                         ui.heading("Receiving!");
                         ui.add_space(10.0);
                         let checkbox = ui
@@ -555,15 +548,17 @@ impl eframe::App for EframeApp {
                         if ui.button("Stop").clicked() {
                             self.stop_receiving_or_sending();
                         }
-
+                        if self.check_if_streaming_is_finished() {
+                            self.go_home();
+                        }
                         //get new frame if available
                         if let Some(r) = &mut self.frame_r {
-                            if let Ok(channel_frame) = r.try_recv() {
+                            if let Ok(frame) = r.try_recv() {
                                 if let Some(texture) = &mut self.texture_handle {
                                     texture.set(
                                         ColorImage::from_rgb(
-                                            [channel_frame.w as usize, channel_frame.h as usize],
-                                            &channel_frame.data,
+                                            [frame.w as usize, frame.h as usize],
+                                            &frame.data,
                                         ),
                                         TextureOptions::default(),
                                     );
@@ -578,6 +573,8 @@ impl eframe::App for EframeApp {
                             }
                         }
 
+                        let start = Instant::now();
+
                         //show currently frame
                         if let Some(texture) = &mut self.texture_handle {
                             ui.add(
@@ -587,6 +584,9 @@ impl eframe::App for EframeApp {
                                     .rounding(10.0),
                             );
                         }
+                        println!("receiving block {}", start.elapsed().as_millis());
+
+                        println!("tot block {}", start_tot.elapsed().as_millis());
                     }
                     State::Hotkey => {
                         self.hotkey_support(ui);
@@ -605,7 +605,6 @@ impl eframe::App for EframeApp {
             });
         });
 
-        ctx.request_repaint();
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         let backup = Backup::new(self.ip_addr.clone(), self.hotkeys.clone());
