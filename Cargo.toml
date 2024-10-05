@@ -15,6 +15,5 @@ image = "0.24.9" # do not change otherwise code does not work
 bincode = "*"
 serde = { version = "1.0.210", features = ["derive"] }
 local-ip-address = "*"
-rdev = "*"
 device_query = "2.1.0"
 scrap = "0.5"

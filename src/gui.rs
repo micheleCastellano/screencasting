@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::SystemTime;
 use std::{mem, thread};
+use scrap::Display;
 
 // section names
 const SECT_HOME: &str = "Home";
@@ -87,7 +88,9 @@ struct DragState {
 
 impl EframeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let (width, height) = rdev::display_size().unwrap();
+        let d = Display::primary().unwrap();
+        let width = d.width();
+        let height = d.height();
 
         let mut app = Self {
             texture_handle: Some(cc.egui_ctx.load_texture(
