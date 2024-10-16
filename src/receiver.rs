@@ -1,5 +1,6 @@
 use std::{fs};
 use std::io::Read;
+use std::io;
 use std::net::{TcpListener};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::SystemTime;
@@ -12,10 +13,6 @@ use crate::util::{Header, CHUNK_SIZE, Message, MessageType};
 const PATH: &str = "./tmp";
 
 fn make_video() {
-    // ffmpeg -framerate 20 -i %d_img.jpeg -c:v libx264 -r 20 01_output.mp4
-    // ffmpeg -framerate 1 -i happy%d.jpg -c:v libx264 -r 30 -pix_fmt yuv420p output.mp4
-    // ffmpeg -framerate 1 -pattern_type glob -i '*.jpg' -c:v libx264 -r 30 -pix_fmt yuv420p output.mp4
-
     let ts = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
     let ffmpeg_command = Command::new("ffmpeg")
@@ -25,16 +22,29 @@ fn make_video() {
         .arg("./tmp/%d_img.jpeg")
         .arg("-c:v")
         .arg("libx264")
-        // .arg("-pix_fmt")
-        // .arg("yuv420p")
         .arg("-r")
         .arg("15")
-        .arg(format!("./0_video.mp4_{ts}.mp4"))
-        .output()
-        .expect("failed to execute ffmpeg");
+        .arg("-pix_fmt")
+        .arg("yuv420p")
+        .arg(format!("./video_{ts}.mp4"))
+        .output();
 
-
-    println!("FFmpeg status: {:?}", ffmpeg_command);
+    match ffmpeg_command {
+        Ok(output) => {
+            if !output.status.success() {
+                println!("ffmpeg failed with status: {:?}", output.status);
+            } else {
+                println!("Video created!");
+            }
+        }
+        Err(e) => {
+            if e.kind() == io::ErrorKind::NotFound {
+                println!("You don't have ffmpeg installed.");
+            } else {
+                println!("Error executing ffmpeg: {}", e);
+            }
+        }
+    }
 }
 
 pub fn start(frame_s: Sender<Frame>, msg_r: Receiver<Message>, ctx: Context, mut save_option: bool) {
