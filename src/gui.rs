@@ -51,6 +51,7 @@ pub struct EframeApp {
     state: State,
     prev_state: State,
     ip_addr: String,
+    local_ip_addr: String,
     alert: bool,
 
     // hotkeys support:
@@ -105,6 +106,7 @@ impl EframeApp {
             screen_height_max: height as u32,
             stroke: Stroke::new(1.0, Color32::from_rgb(25, 200, 100)),
             area: Area::new(0, 0, width as u32, height as u32),
+            local_ip_addr: local_ip_address::local_ip().unwrap().to_string(),
             ..Default::default()
         };
 
@@ -535,7 +537,8 @@ impl eframe::App for EframeApp {
                         }
                     }
                     State::Receiving => {
-                        ui.heading("Receiving!");
+                        
+                        ui.heading(format!("Receiving on {}!", self.local_ip_addr));
                         ui.add_space(10.0);
                         let checkbox = ui
                             .checkbox(&mut self.save_option, "Save streaming")
