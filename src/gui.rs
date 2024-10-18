@@ -61,6 +61,8 @@ pub struct EframeApp {
     hotkeys: HashMap<String, String>,
 
     // selection options support
+    displays: Vec<Display>,
+    selected_display: u32,
     area: Area,
     screen_width_max: u32,
     screen_height_max: u32,
@@ -89,9 +91,9 @@ struct DragState {
 
 impl EframeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let d = Display::primary().unwrap();
-        let width = d.width();
-        let height = d.height();
+        let ds = Display::all().unwrap();
+        let width = ds[0].width();
+        let height = ds[0].height();
 
         let mut app = Self {
             texture_handle: Some(cc.egui_ctx.load_texture(
@@ -105,7 +107,8 @@ impl EframeApp {
             screen_width_max: width as u32,
             screen_height_max: height as u32,
             stroke: Stroke::new(1.0, Color32::from_rgb(25, 200, 100)),
-            area: Area::new(0, 0, width as u32, height as u32),
+            displays: ds,
+            area: Area::new(0, 0, width as u32, height as u32, 0),
             local_ip_addr: local_ip_address::local_ip().unwrap().to_string(),
             ..Default::default()
         };
@@ -135,6 +138,14 @@ impl EframeApp {
                 .spacing(Vec2::new(15.0, 15.0))
                 .max_col_width(200.0)
                 .show(ui, |ui| {
+                    if self.displays.len() == 2 {
+                        ui.radio_value(&mut self.selected_display, 0, "Primary");
+                        ui.radio_value(&mut self.selected_display, 1, "Secondary");
+                        ui.end_row();
+
+                        self.screen_width_max = self.displays[self.selected_display as usize].width() as u32;
+                        self.screen_height_max = self.displays[self.selected_display as usize].height() as u32;
+                    }
                     ui.label("Insert Receiver's IP address: ");
                     ui.text_edit_singleline(&mut self.ip_addr);
                     ui.end_row();
@@ -537,7 +548,6 @@ impl eframe::App for EframeApp {
                         }
                     }
                     State::Receiving => {
-                        
                         ui.heading(format!("Receiving on {}!", self.local_ip_addr));
                         ui.add_space(10.0);
                         let checkbox = ui

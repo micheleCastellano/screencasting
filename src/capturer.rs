@@ -14,6 +14,7 @@ pub struct Area {
     pub y: u32,
     pub width: u32,
     pub height: u32,
+    pub selected_display: u32,
 }
 impl Frame {
     pub fn new(w: u32, h: u32, data: Vec<u8>) -> Self {
@@ -21,13 +22,14 @@ impl Frame {
     }
 }
 impl Area {
-    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self { x, y, width, height }
+    pub fn new(x: u32, y: u32, width: u32, height: u32, selected_display: u32) -> Self {
+        Self { x, y, width, height, selected_display }
     }
 }
-pub fn create() -> Capturer {
-    let display = Display::primary().expect("Couldn't find primary display.");
-    Capturer::new(display).expect("Couldn't begin capture.")
+pub fn create(selected_display: u32) -> Capturer {
+    let mut displays = Display::all().expect("Couldn't find displays.");
+    let d= displays.remove(selected_display as usize);
+    Capturer::new(d).expect("Couldn't begin capture.")
 }
 pub fn capture(cpt: &mut Capturer) -> Vec<u8> {
     loop {

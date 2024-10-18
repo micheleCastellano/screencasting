@@ -21,7 +21,7 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
     println!("Connection successed");
     let mut frame_number = 0;
 
-    let mut cpt = capturer::create();
+    let mut cpt = capturer::create(area.selected_display);
 
     // streaming
     'streaming: loop {
@@ -36,6 +36,7 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
                 }
                 MessageType::Area => {
                     area = msg.area;
+                    cpt = capturer::create(area.selected_display);
                 }
                 _ => {}
             }
