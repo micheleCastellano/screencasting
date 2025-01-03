@@ -62,7 +62,7 @@ pub struct EframeApp {
 
     // selection options support
     displays: Vec<Display>,
-    selected_display: u32,
+    //selected_display: u32,
     area: Area,
     screen_width_max: u32,
     screen_height_max: u32,
@@ -139,12 +139,12 @@ impl EframeApp {
                 .max_col_width(200.0)
                 .show(ui, |ui| {
                     if self.displays.len() == 2 {
-                        ui.radio_value(&mut self.selected_display, 0, "Primary");
-                        ui.radio_value(&mut self.selected_display, 1, "Secondary");
+                        ui.radio_value(&mut self.area.selected_display, 0, "Primary");
+                        ui.radio_value(&mut self.area.selected_display, 1, "Secondary");
                         ui.end_row();
 
-                        self.screen_width_max = self.displays[self.selected_display as usize].width() as u32;
-                        self.screen_height_max = self.displays[self.selected_display as usize].height() as u32;
+                        self.screen_width_max = self.displays[self.area.selected_display as usize].width() as u32;
+                        self.screen_height_max = self.displays[self.area.selected_display as usize].height() as u32;
                     }
                     ui.label("Insert Receiver's IP address: ");
                     ui.text_edit_singleline(&mut self.ip_addr);
@@ -487,7 +487,7 @@ impl eframe::App for EframeApp {
                 // gui state management
                 match self.state {
                     State::Home => {
-                        ui.heading("Wellcome!");
+                        ui.heading("Welcome!");
                         ui.add_space(10.0);
                         ui.label("Do you want to send or receive a screencasting?");
                         ui.add_space(10.0);
@@ -527,11 +527,12 @@ impl eframe::App for EframeApp {
                         if self.sel_opt_modify {
                             if ui.button("Apply").clicked() {
                                 if let Some(s) = self.msg_s.as_mut() {
+                                    println!("sending area request, display: {}", self.area.selected_display);
                                     if let Ok(_) = s.send(Message::area_request(self.area.clone()))
                                     {
                                         self.sel_opt_modify = false;
                                     } else {
-                                        println!("impossible sending area request")
+                                        println!("couldn't send area request")
                                     }
                                 }
                             }

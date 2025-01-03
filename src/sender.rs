@@ -36,6 +36,7 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
                 }
                 MessageType::Area => {
                     area = msg.area;
+                    println!("Selected display: {}", area.selected_display);
                     cpt = capturer::create(area.selected_display);
                 }
                 _ => {}
@@ -61,11 +62,11 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
             println!("Connection closed: {}", e);
             break 'streaming;
         }
-        println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        //println!("Header sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
 
         // Send frame
         let frame_pad = CHUNK_SIZE - (frame.data.len() as u32 % CHUNK_SIZE);
-        println!("frame pad {}", frame_pad);
+        //println!("frame pad {}", frame_pad);
         if frame_pad < CHUNK_SIZE {
             for _ in 0..frame_pad {
                 frame.data.push(0);
@@ -75,7 +76,9 @@ pub fn start(ip_addr: String, mut area: Area, msg_r: Receiver<Message>) {
             println!("Server closed: {}", e);
             break 'streaming;
         }
-        println!("Frame sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        if header.frame_number % 10 == 0 {
+            println!("Frame sent {} {}", header.frame_number, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        }
     }
     println!("Sender terminated");
 }

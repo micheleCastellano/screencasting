@@ -29,6 +29,7 @@ impl Area {
 pub fn create(selected_display: u32) -> Capturer {
     let mut displays = Display::all().expect("Couldn't find displays.");
     let d= displays.remove(selected_display as usize);
+    println!("Selected display: {}, resolution: {}*{}", selected_display, d.height(), d.width());
     Capturer::new(d).expect("Couldn't begin capture.")
 }
 pub fn capture(cpt: &mut Capturer) -> Vec<u8> {
