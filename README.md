@@ -1,4 +1,4 @@
-# Project m1: Multi-platform screen-casting
+# Multi-platform screen-casting
 
 This desktop application was developed as part of the final project for the System Programming course at Politecnino di Torino.
 The project was designed to meet the requirements and guidelines provided by our instructor, which are included below.
